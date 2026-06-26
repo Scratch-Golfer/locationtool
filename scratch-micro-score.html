@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scratch Golf — Micro Location Score</title>
+<style>
+:root {
+  --green-deep: #1C3A0E;
+  --green: #2D5016;
+  --green-mid: #3B6D11;
+  --green-light: #EAF0E2;
+  --cream: #F6F3EC;
+  --paper: #FDFCF9;
+  --ink: #1A1A18;
+  --mid: #6B6B63;
+  --rule: #DDD8CC;
+  --amber: #C47B0A;
+  --red: #B83232;
+  --blue: #1A4A8A;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Georgia', serif; background: var(--cream); color: var(--ink); min-height: 100vh; }
+
+header {
+  background: var(--green-deep); padding: 0 32px;
+  display: flex; align-items: center; gap: 0; height: 52px;
+  border-bottom: 3px solid var(--green-mid);
+}
+.hdr-logo { font-family: 'Helvetica Neue', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: white; }
+.hdr-div { width: 1px; height: 20px; background: rgba(255,255,255,0.2); margin: 0 18px; }
+.hdr-title { font-family: 'Helvetica Neue', sans-serif; font-size: 12px; font-weight: 400; color: rgba(255,255,255,0.6); letter-spacing: 0.05em; }
+.hdr-badge { margin-left: auto; font-family: 'Helvetica Neue', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.4); }
+
+.page { max-width: 780px; margin: 0 auto; padding: 32px 24px 60px; }
+
+/* Input card */
+.input-card { background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 24px; margin-bottom: 24px; }
+.input-card h2 { font-family: 'Helvetica Neue', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mid); margin-bottom: 14px; }
+.addr-row { display: flex; gap: 10px; }
+.addr-row input {
+  flex: 1; border: 1px solid var(--rule); border-radius: 6px; padding: 11px 14px;
+  font-family: 'Helvetica Neue', sans-serif; font-size: 14px; color: var(--ink);
+  background: var(--cream); outline: none;
+}
+.addr-row input:focus { border-color: var(--green-mid); background: white; }
+.addr-row input::placeholder { color: #aaa; }
+.btn-score {
+  background: var(--green); color: white; border: none; border-radius: 6px;
+  padding: 11px 24px; font-family: 'Helvetica Neue', sans-serif; font-size: 13px;
+  font-weight: 600; cursor: pointer; white-space: nowrap; transition: background 0.15s;
+}
+.btn-score:hover { background: var(--green-mid); }
+.btn-score:disabled { opacity: 0.45; cursor: not-allowed; }
+.err { font-family: 'Helvetica Neue', sans-serif; font-size: 12px; color: var(--red); margin-top: 8px; display: none; }
+
+/* Progress steps */
+.progress { display: none; margin-bottom: 20px; }
+.progress.visible { display: flex; flex-direction: column; gap: 0; }
+.prog-step {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px;
+  background: var(--paper); border: 1px solid var(--rule);
+  font-family: 'Helvetica Neue', sans-serif; font-size: 12px; color: var(--mid);
+}
+.prog-step:first-child { border-radius: 8px 8px 0 0; }
+.prog-step:last-child { border-radius: 0 0 8px 8px; }
+.prog-step + .prog-step { border-top: none; }
+.prog-dot {
+  width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700;
+}
+.prog-dot.waiting { background: #F0EDE6; color: var(--mid); }
+.prog-dot.running { background: #FEF4E0; color: var(--amber); animation: pulse 1s ease-in-out infinite; }
+.prog-dot.done { background: var(--green-light); color: var(--green); }
+.prog-dot.error { background: #FDECEA; color: var(--red); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+.prog-label { flex: 1; }
+.prog-detail { font-size: 11px; color: var(--mid); margin-top: 1px; }
+
+/* Results */
+.results { display: none; }
+.results.visible { display: block; }
+
+/* Score hero */
+.score-hero {
+  background: var(--paper); border: 1px solid var(--rule); border-radius: 10px;
+  padding: 26px 24px; margin-bottom: 18px; display: flex; align-items: flex-start; gap: 22px;
+}
+.score-dial {
+  width: 84px; height: 84px; border-radius: 50%; flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.dial-num { font-family: 'Helvetica Neue', sans-serif; font-size: 32px; font-weight: 700; line-height: 1; }
+.dial-denom { font-family: 'Helvetica Neue', sans-serif; font-size: 10px; opacity: 0.5; margin-top: 2px; }
+.s1 { background: #FCEAEA; color: var(--red); border: 2px solid var(--red); }
+.s2 { background: #FEF4E0; color: var(--amber); border: 2px solid var(--amber); }
+.s3 { background: #F0F6E6; color: #4A7A1A; border: 2px solid #4A7A1A; }
+.s4 { background: var(--green-light); color: var(--green); border: 2px solid var(--green); }
+.s5 { background: var(--green-deep); color: white; border: 2px solid var(--green-deep); }
+
+.score-meta { flex: 1; }
+.score-addr { font-family: 'Helvetica Neue', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 4px; line-height: 1.2; }
+.score-label { font-family: 'Helvetica Neue', sans-serif; font-size: 11px; color: var(--mid); letter-spacing: 0.05em; margin-bottom: 10px; }
+
+/* Component bars */
+.components { display: flex; flex-direction: column; gap: 0; margin-bottom: 18px; }
+.comp-row {
+  background: var(--paper); border: 1px solid var(--rule);
+  padding: 14px 18px; display: flex; align-items: center; gap: 14px;
+}
+.comp-row:first-child { border-radius: 8px 8px 0 0; }
+.comp-row:last-child { border-radius: 0 0 8px 8px; }
+.comp-row + .comp-row { border-top: none; }
+.comp-badge {
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Helvetica Neue', sans-serif; font-size: 12px; font-weight: 700;
+}
+.comp-info { flex: 1; }
+.comp-name { font-family: 'Helvetica Neue', sans-serif; font-size: 12px; font-weight: 600; color: var(--ink); }
+.comp-detail { font-family: 'Helvetica Neue', sans-serif; font-size: 11px; color: var(--mid); margin-top: 2px; line-height: 1.5; }
+.comp-weight { font-family: 'Helvetica Neue', sans-serif; font-size: 10px; color: var(--mid); text-align: right; }
+.comp-bar-wrap { width: 80px; height: 5px; background: #EDE9E0; border-radius: 3px; overflow: hidden; margin-top: 4px; }
+.comp-bar { height: 100%; border-radius: 3px; background: var(--green-mid); transition: width 0.6s ease; }
+.comp-bar.amber { background: var(--amber); }
+.comp-bar.red { background: var(--red); }
+
+/* Venues list */
+.venues-card { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; margin-bottom: 18px; }
+.venues-header {
+  padding: 10px 16px; background: var(--cream); border-bottom: 1px solid var(--rule);
+  font-family: 'Helvetica Neue', sans-serif; font-size: 10px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--mid);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.venue-row {
+  padding: 9px 16px; border-bottom: 1px solid var(--rule);
+  display: flex; align-items: center; gap: 10px;
+  font-family: 'Helvetica Neue', sans-serif; font-size: 12px;
+}
+.venue-row:last-child { border-bottom: none; }
+.venue-tag {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 3px; white-space: nowrap; flex-shrink: 0;
+}
+.tag-pos { background: #E5F3D0; color: #2A6010; }
+.tag-neg { background: #FDECEA; color: var(--red); }
+.tag-neu { background: #F0EDE6; color: var(--mid); }
+.venue-name { flex: 1; color: var(--ink); font-weight: 500; }
+.venue-type { color: var(--mid); font-size: 11px; }
+.venue-reviews { color: var(--mid); font-size: 11px; text-align: right; white-space: nowrap; }
+
+/* AI reasoning */
+.ai-card { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 18px 20px; margin-bottom: 18px; }
+.ai-card-title { font-family: 'Helvetica Neue', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mid); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.ai-tag { background: var(--green-light); color: var(--green); font-size: 9px; font-weight: 700; letter-spacing: 0.06em; padding: 2px 6px; border-radius: 3px; }
+.ai-reasoning { font-size: 13px; line-height: 1.7; color: var(--ink); }
+
+/* Score equation */
+.eq-card { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 14px 18px; margin-bottom: 6px; font-family: 'Helvetica Neue', sans-serif; font-size: 12px; color: var(--mid); line-height: 1.9; }
+.eq-card strong { color: var(--ink); }
+.eq-result { color: var(--green); font-weight: 700; font-size: 14px; }
+
+.footnote { font-family: 'Helvetica Neue', sans-serif; font-size: 11px; color: var(--mid); line-height: 1.6; padding: 0 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="hdr-logo">Scratch Golf</span>
+  <div class="hdr-div"></div>
+  <span class="hdr-title">Micro Location Score</span>
+  <span class="hdr-badge">Footfall · Neighbourhood · Street character</span>
+</header>
+
+<div class="page">
+
+  <div class="input-card">
+    <h2>Score a prospective site</h2>
+    <div class="addr-row">
+      <input type="text" id="addr-input" placeholder="e.g. 46 Battersea Rise, SW11" autocomplete="off">
+      <button class="btn-score" id="btn-score">Score</button>
+    </div>
+    <div class="err" id="err-msg"></div>
+  </div>
+
+  <div class="progress" id="progress">
+    <div class="prog-step" id="step-geo">
+      <div class="prog-dot waiting" id="dot-geo">1</div>
+      <div>
+        <div class="prog-label" id="lbl-geo">Locating address</div>
+        <div class="prog-detail" id="det-geo">Geocoding to coordinates</div>
+      </div>
+    </div>
+    <div class="prog-step" id="step-places">
+      <div class="prog-dot waiting" id="dot-places">2</div>
+      <div>
+        <div class="prog-label" id="lbl-places">Pulling nearby venues</div>
+        <div class="prog-detail" id="det-places">Google Places — 400m radius</div>
+      </div>
+    </div>
+    <div class="prog-step" id="step-ai">
+      <div class="prog-dot waiting" id="dot-ai">3</div>
+      <div>
+        <div class="prog-label" id="lbl-ai">Assessing street character</div>
+        <div class="prog-detail" id="det-ai">Claude — discovery potential, evening viability, neighbourhood scene</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="results" id="results"></div>
+
+</div>
+
+<script>
+const GOOGLE_KEY = 'AIzaSyD7t9mpKJpMACotkzGWJ3kTsjX_81R-E-g';
+
+// ── CLASSIFICATION ────────────────────────────────────────────────────────
+const LEISURE_TYPES = new Set([
+  'gym','fitness_center','spa','beauty_salon','hair_care','nail_salon',
+  'cafe','coffee_shop','bar','restaurant','food','bakery','wine_bar',
+  'night_club','bowling_alley','movie_theater','amusement_park',
+  'yoga','pilates','sports_club','stadium','golf_course',
+  'clothing_store','shoe_store','jewelry_store','boutique',
+  'book_store','art_gallery','museum',
+  'supermarket','grocery_or_supermarket','convenience_store',
+  'pharmacy','drugstore','florist','pet_store',
+  'bicycle_store','sporting_goods_store',
+]);
+
+const NEGATIVE_TYPES = new Set([
+  'car_repair','car_wash','car_dealer','gas_station','parking',
+  'storage','moving_company','general_contractor','roofing_contractor',
+  'laundry','funeral_home','cemetery','junk_removal',
+  'liquor_store','casino',
+]);
+
+const TYPE_LABELS = {
+  bar:'Bar', restaurant:'Restaurant', cafe:'Café', gym:'Gym',
+  fitness_center:'Gym', spa:'Spa', beauty_salon:'Beauty salon',
+  hair_care:'Hair salon', nail_salon:'Nail salon', bakery:'Bakery',
+  clothing_store:'Clothing', shoe_store:'Shoes', book_store:'Bookshop',
+  supermarket:'Supermarket', grocery_or_supermarket:'Supermarket',
+  convenience_store:'Convenience store', pharmacy:'Pharmacy',
+  art_gallery:'Gallery', museum:'Museum', movie_theater:'Cinema',
+  school:'School', health:'Health/wellness', dentist:'Dentist',
+  doctor:'Doctor', physiotherapist:'Physio',
+  car_repair:'Car repair', general_contractor:'Contractor',
+  car_wash:'Car wash', gas_station:'Petrol station',
+  point_of_interest:'Business', store:'Shop', establishment:'Business',
+  finance:'Financial services', insurance_agency:'Insurance',
+  real_estate_agency:'Estate agent', accounting:'Accountant',
+};
+
+function classifyPlace(types) {
+  const tset = new Set(types);
+  if ([...tset].some(t => NEGATIVE_TYPES.has(t))) return 'neg';
+  if ([...tset].some(t => LEISURE_TYPES.has(t))) return 'pos';
+  return 'neu';
+}
+
+function primaryType(types) {
+  for (const t of types) {
+    if (TYPE_LABELS[t] && t !== 'point_of_interest' && t !== 'establishment' && t !== 'store') {
+      return TYPE_LABELS[t];
+    }
+  }
+  return TYPE_LABELS[types[0]] || types[0] || 'Business';
+}
+
+// ── SCORING ───────────────────────────────────────────────────────────────
+// Volume score: total review count within 400m
+function volumeScore(places) {
+  const total = places.reduce((s, p) => s + (p.user_ratings_total || 0), 0);
+  // Calibration: Balham 200m = ~1400 reviews → 400m ~= 4000-6000 for a 3/5
+  // Thresholds for 400m radius:
+  if (total >= 15000) return 5;
+  if (total >= 8000)  return 4;
+  if (total >= 3000)  return 3;
+  if (total >= 1000)  return 2;
+  return 1;
+}
+
+// Intent score: % leisure & lifestyle venues, weighted by review count
+function intentScore(places) {
+  const active = places.filter(p => p.user_ratings_total > 0);
+  if (!active.length) return 1;
+  const posReviews = active.filter(p => classifyPlace(p.types) === 'pos')
+    .reduce((s, p) => s + (p.user_ratings_total || 0), 0);
+  const negReviews = active.filter(p => classifyPlace(p.types) === 'neg')
+    .reduce((s, p) => s + (p.user_ratings_total || 0), 0);
+  const totalReviews = active.reduce((s, p) => s + (p.user_ratings_total || 0), 0);
+  const posRatio = posReviews / Math.max(totalReviews, 1);
+  const negPenalty = negReviews / Math.max(totalReviews, 1);
+  const adjusted = posRatio - (negPenalty * 0.5);
+  if (adjusted >= 0.65) return 5;
+  if (adjusted >= 0.45) return 4;
+  if (adjusted >= 0.28) return 3;
+  if (adjusted >= 0.12) return 2;
+  return 1;
+}
+
+function computeMicroScore(volScore, intentScore, aiScore) {
+  const W = (volScore * 0.30) + (intentScore * 0.35) + (aiScore * 0.35);
+  return { W: Math.round(W * 10) / 10, score: Math.min(5, Math.max(1, Math.round(W))) };
+}
+
+// ── PROGRESS HELPERS ──────────────────────────────────────────────────────
+function setStep(id, state, detail) {
+  const dot = document.getElementById('dot-' + id);
+  const det = document.getElementById('det-' + id);
+  dot.className = 'prog-dot ' + state;
+  dot.textContent = state === 'done' ? '✓' : state === 'error' ? '✗' : (id === 'geo' ? '1' : id === 'places' ? '2' : '3');
+  if (detail && det) det.textContent = detail;
+}
+
+// ── API CALLS ─────────────────────────────────────────────────────────────
+async function geocode(address) {
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&region=gb&key=${GOOGLE_KEY}`;
+  const r = await fetch(url);
+  const d = await r.json();
+  if (d.status !== 'OK' || !d.results.length) throw new Error('Address not found');
+  const loc = d.results[0].geometry.location;
+  return { lat: loc.lat, lng: loc.lng, formatted: d.results[0].formatted_address };
+}
+
+async function nearbyPlaces(lat, lng) {
+  // Use Places API (New) — supports CORS from any origin including file://
+  const url = 'https://places.googleapis.com/v1/places:searchNearby';
+  const body = {
+    locationRestriction: {
+      circle: { center: { latitude: lat, longitude: lng }, radius: 400.0 }
+    },
+    maxResultCount: 20
+  };
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': GOOGLE_KEY,
+      'X-Goog-FieldMask': 'places.displayName,places.types,places.rating,places.userRatingCount,places.priceLevel,places.primaryType'
+    },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error('Places API error: ' + r.status);
+  const d = await r.json();
+  // Normalise new API response to match legacy shape
+  return (d.places || []).map(p => ({
+    name: p.displayName?.text || '',
+    types: p.types || (p.primaryType ? [p.primaryType] : ['establishment']),
+    rating: p.rating || null,
+    user_ratings_total: p.userRatingCount || 0,
+    price_level: p.priceLevel || null,
+  }));
+}
+
+async function getAIScore(address, places) {
+  const posVenues = places.filter(p => classifyPlace(p.types) === 'pos')
+    .sort((a, b) => (b.user_ratings_total||0) - (a.user_ratings_total||0))
+    .slice(0, 8)
+    .map(p => `${p.name} (${primaryType(p.types)}, ${p.user_ratings_total||0} reviews${p.rating ? ', ' + p.rating + '★' : ''})`);
+  const negVenues = places.filter(p => classifyPlace(p.types) === 'neg')
+    .map(p => p.name);
+
+  const prompt = `You are scoring a prospective location for Scratch Golf Club — an unstaffed indoor golf simulator membership business targeting 30-34 year old professionals in London. 41% of current members discovered it by walking past.
+
+Address: ${address}
+
+Nearby venues within 400m (positive signals):
+${posVenues.length ? posVenues.join('\n') : 'None identified'}
+
+Nearby venues within 400m (negative signals):
+${negVenues.length ? negVenues.join(', ') : 'None identified'}
+
+Score this location 1-5 on street character and discovery potential for Scratch Golf:
+1 = Poor: hidden, wrong crowd, dead at evenings, destination-only or industrial
+2 = Weak: low visibility, limited passing trade from target demographic  
+3 = Moderate: some passing trade from right demographic, findable but not prominent
+4 = Good: natural through-route for target demographic, active evenings, good visibility
+5 = Excellent: high visibility on a route locals use daily, strong leisure/lifestyle scene, evening-active
+
+Base your score on your knowledge of this specific London street/area — its character, the demographic it serves, whether it's a natural discovery route between residential and amenities, and whether it feels right at 7pm on a weekday.
+
+Respond ONLY with valid JSON: {"score": 3, "reasoning": "2-3 sentences explaining the score focusing on street character, evening activity, and discovery potential"}`;
+
+  const SUPABASE_URL = 'https://mfhcqxquzjknzifjebvu.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_HYuBeJEs2OuKiIUOym5Fbw_55TfnxAH';
+  const EDGE_FN = SUPABASE_URL + '/functions/v1/hyper-worker';
+
+  const resp = await fetch(EDGE_FN, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+    },
+    body: JSON.stringify({ prompt: prompt })
+  });
+  const rawText = await resp.text();
+  if (!rawText || rawText.trim() === '') {
+    throw new Error(`Proxy returned empty response (HTTP ${resp.status})`);
+  }
+  let data;
+  try {
+    data = JSON.parse(rawText);
+  } catch(e) {
+    throw new Error(`Non-JSON response (HTTP ${resp.status}): ${rawText.substring(0, 200)}`);
+  }
+  if (data.error) throw new Error(`Claude error: ${JSON.stringify(data.error)}`);
+  if (typeof data.score === 'undefined') throw new Error(`No score returned: ${JSON.stringify(data).substring(0, 200)}`);
+  return { score: parseFloat(data.score), reasoning: data.reasoning || '' };
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────
+const SCORE_LABELS = ['', 'Poor match', 'Weak match', 'Moderate match', 'Good match', 'Strong match'];
+
+function barClass(score) {
+  return score >= 4 ? '' : score >= 3 ? 'amber' : 'red';
+}
+
+function renderResults(address, places, aiResult, volSc, intentSc, aiSc, final) {
+  const { W, score } = final;
+
+  const posPlaces = places.filter(p => classifyPlace(p.types) === 'pos');
+  const negPlaces = places.filter(p => classifyPlace(p.types) === 'neg');
+  const totalReviews = places.reduce((s, p) => s + (p.user_ratings_total || 0), 0);
+
+  // Top venues to show — sorted by review count, mix of pos/neg/neu
+  const topVenues = [...places]
+    .filter(p => p.name && p.types && p.types[0] !== 'locality')
+    .sort((a, b) => (b.user_ratings_total||0) - (a.user_ratings_total||0))
+    .slice(0, 12);
+
+  const venueRows = topVenues.map(p => {
+    const cls = classifyPlace(p.types);
+    const tagLabel = cls === 'pos' ? 'Positive' : cls === 'neg' ? 'Negative' : 'Neutral';
+    const tagCls = cls === 'pos' ? 'tag-pos' : cls === 'neg' ? 'tag-neg' : 'tag-neu';
+    const reviews = p.user_ratings_total ? `${p.user_ratings_total.toLocaleString()} reviews` : 'No reviews';
+    const rating = p.rating ? ` · ${p.rating}★` : '';
+    return `<div class="venue-row">
+      <span class="venue-tag ${tagCls}">${tagLabel}</span>
+      <span class="venue-name">${p.name}</span>
+      <span class="venue-type">${primaryType(p.types)}</span>
+      <span class="venue-reviews">${reviews}${rating}</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('results').innerHTML = `
+    <div class="score-hero">
+      <div class="score-dial s${score}">
+        <span class="dial-num">${score}</span>
+        <span class="dial-denom">/ 5</span>
+      </div>
+      <div class="score-meta">
+        <div class="score-addr">${address}</div>
+        <div class="score-label">${SCORE_LABELS[score]} · Micro location score</div>
+        <div style="font-family:'Helvetica Neue',sans-serif;font-size:12px;color:var(--mid);margin-top:6px">
+          ${places.length} venues within 400m · ${totalReviews.toLocaleString()} total reviews · 
+          ${posPlaces.length} positive · ${negPlaces.length} negative
+        </div>
+      </div>
+    </div>
+
+    <div class="components">
+      <div class="comp-row">
+        <div class="comp-badge s${volSc}">${volSc}</div>
+        <div class="comp-info">
+          <div class="comp-name">Footfall volume</div>
+          <div class="comp-detail">${totalReviews.toLocaleString()} total reviews within 400m — proxy for pedestrian traffic on this street</div>
+          <div class="comp-bar-wrap" style="margin-top:6px">
+            <div class="comp-bar ${barClass(volSc)}" style="width:${volSc/5*100}%"></div>
+          </div>
+        </div>
+        <div class="comp-weight">30% weight</div>
+      </div>
+      <div class="comp-row">
+        <div class="comp-badge s${intentSc}">${intentSc}</div>
+        <div class="comp-info">
+          <div class="comp-name">Footfall intent</div>
+          <div class="comp-detail">${posPlaces.length} leisure & lifestyle venues vs ${negPlaces.length} negative signals — are the people passing this street the right people?</div>
+          <div class="comp-bar-wrap" style="margin-top:6px">
+            <div class="comp-bar ${barClass(intentSc)}" style="width:${intentSc/5*100}%"></div>
+          </div>
+        </div>
+        <div class="comp-weight">35% weight</div>
+      </div>
+      <div class="comp-row">
+        <div class="comp-badge s${aiSc}">${aiSc}</div>
+        <div class="comp-info">
+          <div class="comp-name">Street character</div>
+          <div class="comp-detail">Discovery potential, evening viability, neighbourhood scene — Claude's assessment</div>
+          <div class="comp-bar-wrap" style="margin-top:6px">
+            <div class="comp-bar ${barClass(aiSc)}" style="width:${aiSc/5*100}%"></div>
+          </div>
+        </div>
+        <div class="comp-weight">35% weight</div>
+      </div>
+    </div>
+
+    <div class="ai-card">
+      <div class="ai-card-title">Street character assessment <span class="ai-tag">Claude</span></div>
+      <div class="ai-reasoning">${aiResult.reasoning}</div>
+    </div>
+
+    <div class="venues-card">
+      <div class="venues-header">
+        <span>Nearby venues within 400m — top ${topVenues.length} by review count</span>
+        <span>${places.length} total</span>
+      </div>
+      ${venueRows}
+    </div>
+
+    <div class="eq-card">
+      Score = (volume ${volSc} × 0.30) + (intent ${intentSc} × 0.35) + (street ${aiSc} × 0.35)<br>
+      = ${(volSc*0.30).toFixed(2)} + ${(intentSc*0.35).toFixed(2)} + ${(aiSc*0.35).toFixed(2)}<br>
+      = <strong>${W}</strong> → <span class="eq-result">${score} / 5</span>
+    </div>
+
+    <div class="footnote">
+      Footfall volume calibrated against Balham (40 Balham Hill) and Wandsworth (5 Chivers Passage) as 3–4/5 reference points.
+      Street character scored by Claude using training knowledge of London neighbourhoods; based on conditions as of mid-2025 — verify for rapidly changing areas.
+      Google Places data via Nearby Search API, 400m radius.
+    </div>`;
+
+  document.getElementById('results').classList.add('visible');
+}
+
+// ── MAIN ──────────────────────────────────────────────────────────────────
+document.getElementById('addr-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-score').click();
+});
+
+document.getElementById('btn-score').addEventListener('click', async () => {
+  const addr = document.getElementById('addr-input').value.trim();
+  if (!addr) return;
+
+  document.getElementById('err-msg').style.display = 'none';
+  document.getElementById('results').classList.remove('visible');
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('btn-score').disabled = true;
+
+  // Show progress
+  const prog = document.getElementById('progress');
+  prog.classList.add('visible');
+  setStep('geo', 'waiting', 'Geocoding to coordinates');
+  setStep('places', 'waiting', 'Google Places — 400m radius');
+  setStep('ai', 'waiting', 'Claude — discovery potential, evening viability, neighbourhood scene');
+
+  try {
+    // Step 1: Geocode
+    setStep('geo', 'running', 'Finding address...');
+    const { lat, lng, formatted } = await geocode(addr);
+    setStep('geo', 'done', formatted);
+
+    // Step 2: Places
+    setStep('places', 'running', 'Fetching nearby venues...');
+    const places = await nearbyPlaces(lat, lng);
+    const totalReviews = places.reduce((s, p) => s + (p.user_ratings_total||0), 0);
+    const posCount = places.filter(p => classifyPlace(p.types) === 'pos').length;
+    setStep('places', 'done', `${places.length} venues found · ${totalReviews.toLocaleString()} total reviews · ${posCount} positive`);
+
+    const volSc = volumeScore(places);
+    const intentSc = intentScore(places);
+
+    // Step 3: AI
+    setStep('ai', 'running', 'Assessing street character...');
+    const aiResult = await getAIScore(formatted, places);
+    const aiSc = Math.min(5, Math.max(1, Math.round(aiResult.score)));
+    setStep('ai', 'done', `Score ${aiSc}/5 — ${aiResult.reasoning.substring(0, 80)}...`);
+
+    const final = computeMicroScore(volSc, intentSc, aiSc);
+
+    prog.classList.remove('visible');
+    renderResults(formatted, places, aiResult, volSc, intentSc, aiSc, final);
+
+  } catch(e) {
+    const failedStep = ['geo','places','ai'].find(s =>
+      document.getElementById('dot-' + s).classList.contains('running')
+    ) || 'geo';
+    setStep(failedStep, 'error', e.message);
+    document.getElementById('err-msg').textContent = e.message;
+    document.getElementById('err-msg').style.display = 'block';
+  } finally {
+    document.getElementById('btn-score').disabled = false;
+  }
+});
+</script>
+</body>
+</html>

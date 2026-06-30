@@ -630,7 +630,7 @@ function renderMacroBreakdown(s){
     const dCls=Math.abs(delta)<bench*0.08?'dneu':((hi?delta>0:delta<0)?'dpos':'dneg');
     const sign=delta>0?'+':'';
     const pct=Math.min(100,(val/Math.max(bench*1.15,val))*100);
-    const barCls=ratio>=0.90?'':'ratio>=0.75?'amber':'red';
+    const barCls=ratio>=0.90?'':(ratio>=0.75?'amber':'red');
     return`<div class="sig-card">
       <div class="sig-label">${sig.label}</div>
       <div class="sig-row"><span class="sig-name">Site</span><span class="sig-val">${val.toFixed(1)}${sig.sfx}<span class="delta ${dCls}">${sign}${delta.toFixed(1)}${sig.sfx}</span></span></div>

@@ -587,7 +587,7 @@ function renderMacroTab(s){
       <div class="ss-dial ${hasScore?dialClass(s.macro_score_v2):'dn'}">${s.macro_score_v2||'—'}</div>
       <div class="ss-info">
         <div class="ss-title">Macro Score — Demographic profile</div>
-        <div class="ss-sub">Benchmarked against Balham + Wandsworth. Requires postcode.</div>
+        <div class="ss-sub">Benchmarked against Balham + Wandsworth. Postcode auto-extracted from address.</div>
       </div>
       <button class="btn-sm btn-primary ss-run-btn" id="macro-run-btn" onclick="runMacroScore()">
         ${hasScore?'Re-run':'Run score'}
@@ -597,10 +597,9 @@ function renderMacroTab(s){
     ${hasScore?renderMacroBreakdown(s):'<div class="ss-body" style="color:var(--mid);font-family:\'Helvetica Neue\',sans-serif;font-size:12px;">Enter a postcode below and click Run score.</div>'}
   </div>
   <div class="card">
-    <div class="card-title">Postcode</div>
-    <div style="display:flex;gap:8px">
-      <input id="macro-postcode" class="mf-input" style="margin:0;flex:1" placeholder="e.g. SW11 1EE" value="${s.postcode||''}">
-      <button class="btn-sm btn-secondary" onclick="savePostcode()">Save</button>
+    <div class="card-title">Postcode (extracted from address)</div>
+    <div style="font-family:'Helvetica Neue',sans-serif;font-size:14px;color:var(--ink);padding:8px 0">
+      ${extractPostcode(s.address)||'<span style="color:var(--red)">No valid UK postcode found in address — edit the address in Site Info</span>'}
     </div>
   </div>`;
 
@@ -645,18 +644,16 @@ function renderMacroBreakdown(s){
   </div>`;
 }
 
-async function savePostcode(){
-  const pc=document.getElementById('macro-postcode').value.trim().toUpperCase();
-  if(!pc)return;
-  await patchSite(curId,{postcode:pc});
-  const s=sites.find(x=>x.id===curId);
-  if(s)renderMacroTab(s);
+function extractPostcode(address){
+  if(!address)return null;
+  const m=address.toUpperCase().match(/([A-Z]{1,2}\d{1,2}[A-Z]?)\s*(\d[A-Z]{2})/);
+  return m?`${m[1]} ${m[2]}`:null;
 }
 
 async function runMacroScore(){
   const s=sites.find(x=>x.id===curId);if(!s)return;
-  const pc=(document.getElementById('macro-postcode').value.trim()||s.postcode||'').toUpperCase();
-  if(!pc){alert('Enter a postcode first.');return;}
+  const pc=extractPostcode(s.address);
+  if(!pc){alert('No valid UK postcode found in this address. Edit the address in Site Info to include one.');return;}
 
   const btn=document.getElementById('macro-run-btn');
   btn.disabled=true;btn.innerHTML='<span class="spin"></span>Running…';
@@ -703,8 +700,7 @@ async function runMacroScore(){
     await patchSite(curId,{
       macro_score_v2:score,
       macro_score_v2_reasoning:reasoning,
-      macro_score_data:JSON.stringify(data),
-      postcode:pc
+      macro_score_data:JSON.stringify(data)
     });
 
     renderDetail(sites.find(x=>x.id===curId));

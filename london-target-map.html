@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scratch Golf — London Target Map</title>
+<style>
+:root{--green-deep:#1C3A0E;--green:#2D5016;--green-mid:#3B6D11;--green-light:#EAF0E2;--cream:#F6F3EC;--ink:#1A1A18;--mid:#6B6B63;--rule:#DDD8CC;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Helvetica Neue',sans-serif;background:var(--cream);color:var(--ink);height:100vh;display:flex;flex-direction:column;}
+header{background:var(--green-deep);height:48px;display:flex;align-items:center;padding:0 20px;gap:14px;flex-shrink:0;}
+.logo{font-size:10px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:white;}
+.hdiv{width:1px;height:18px;background:rgba(255,255,255,.2);}
+.htitle{font-size:12px;color:rgba(255,255,255,.6);}
+.shell{flex:1;display:flex;overflow:hidden;}
+#map{flex:1;}
+.panel{width:280px;background:white;border-left:1px solid var(--rule);overflow-y:auto;flex-shrink:0;}
+.panel-head{padding:14px 16px;border-bottom:1px solid var(--rule);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--mid);}
+.legend{padding:14px 16px;border-bottom:1px solid var(--rule);}
+.legend-title{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mid);margin-bottom:10px;}
+.leg-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:12px;}
+.leg-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+.leg-line{width:20px;height:3px;border-radius:2px;flex-shrink:0;}
+.area-list{padding:8px 0;}
+.area-item{padding:10px 16px;border-bottom:1px solid var(--rule);cursor:pointer;transition:background .1s;}
+.area-item:hover{background:var(--cream);}
+.area-item.active{background:var(--green-light);}
+.ai-rank{font-size:10px;font-weight:700;color:var(--mid);margin-bottom:2px;}
+.ai-name{font-size:13px;font-weight:600;color:var(--ink);}
+.ai-score{font-size:11px;color:var(--mid);margin-top:2px;}
+.street-popup{display:none;padding:10px 16px;background:var(--green-light);border-bottom:1px solid var(--rule);}
+.street-popup.visible{display:block;}
+.sp-title{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--green);margin-bottom:6px;}
+.sp-street{font-size:11px;color:var(--ink);padding:3px 0;border-bottom:1px solid rgba(0,0,0,.06);}
+.sp-street:last-child{border-bottom:none;}
+.live-badge{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:var(--green-deep);color:white;padding:2px 5px;border-radius:3px;margin-left:6px;}
+</style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+<header>
+  <span class="logo">Scratch Golf</span>
+  <div class="hdiv"></div>
+  <span class="htitle">London Target Location Map</span>
+</header>
+<div class="shell">
+  <div id="map"></div>
+  <div class="panel">
+    <div class="panel-head">Target areas</div>
+    <div class="legend">
+      <div class="legend-title">Macro score</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#1C6B0A"></div>5/5 — Exceptional</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#5BA81F"></div>4/5 — Strong match</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#E8A020"></div>3/5 — Moderate match</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#CC4433"></div>2/5 — Weak match</div>
+      <div style="margin-top:10px" class="legend-title">Sites</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#1C3A0E;border:2px solid white;box-shadow:0 0 0 1.5px #1C3A0E"></div>Live profitable site</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#4A90D9;border:2px solid white;box-shadow:0 0 0 1.5px #4A90D9"></div>Pipeline site</div>
+    </div>
+    <div class="area-list" id="area-list"></div>
+  </div>
+</div>
+
+<script>
+const AREAS = [
+  {rank:1, name:'East Putney', area:'SW15', lat:51.461, lng:-0.214, score:4, w:0.86,
+   streets:['Upper Richmond Road','Lacy Road','Putney High Street fringe'],
+   note:'Closest demographic match to Wandsworth. Low social rent, high professional density.'},
+  {rank:2, name:'Northcote Road', area:'SW11', lat:51.453, lng:-0.162, score:4, w:0.87,
+   streets:['Northcote Road','Battersea Rise','Bellevue Road'],
+   note:'Highest-scoring area. Exceptional footfall and leisure neighbour mix.'},
+  {rank:3, name:'Earlsfield', area:'SW18', lat:51.436, lng:-0.186, score:4, w:0.68,
+   streets:['Garratt Lane','Magdalen Road'],
+   note:'Underrated. Close to Wandsworth. Low social rent, improving rapidly.'},
+  {rank:4, name:'Crouch End', area:'N8', lat:51.572, lng:-0.125, score:4, w:0.71,
+   streets:['The Broadway','Topsfield Parade','Middle Lane'],
+   note:'Strong professional density, very low social rent. Excellent Broadway environment.'},
+  {rank:5, name:'Clapham Common', area:'SW4', lat:51.460, lng:-0.148, score:4, w:0.75,
+   streets:['Abbeville Road','Old Town','Northside near tube'],
+   note:'Abbeville Road is one of the best micro streets in London for this demographic.'},
+  {rank:6, name:'Chiswick', area:'W4', lat:51.494, lng:-0.265, score:4, w:0.68,
+   streets:['Turnham Green Terrace','Chiswick High Road','Devonshire Road'],
+   note:'High professional density, very low social rent.'},
+  {rank:7, name:'Battersea', area:'SW11', lat:51.470, lng:-0.159, score:4, w:0.72,
+   streets:["St John's Road",'Battersea Rise'],
+   note:'Strong age profile. Target northern Battersea, not Nine Elms.'},
+  {rank:8, name:'Angel / Islington', area:'N1', lat:51.532, lng:-0.104, score:4, w:0.68,
+   streets:['Upper Street','Essex Road'],
+   note:'Upper Street is exceptional micro despite mixed broader area.'},
+  {rank:9, name:'Fulham', area:'SW6', lat:51.476, lng:-0.202, score:4, w:0.64,
+   streets:['New Kings Road','Dawes Road'],
+   note:'Lease signed on Heathmans Road. New Kings Road corridor is the priority.'},
+  {rank:10, name:'Tooting', area:'SW17', lat:51.427, lng:-0.168, score:4, w:0.63,
+   streets:['Upper Tooting Road (north)','Tooting Bec Road'],
+   note:'Transitional — pursue opportunistically.'},
+];
+
+const LIVE_SITES = [
+  {name:'Balham (live)', lat:51.4489, lng:-0.1484, bays:1},
+  {name:'Wandsworth (live)', lat:51.454, lng:-0.191, bays:2},
+];
+
+const PIPELINE_SITES = [
+  {name:'Heathmans Road SW6', lat:51.474, lng:-0.202},
+];
+
+// Score colours
+function scoreColour(s){
+  return s>=5?'#1C6B0A':s>=4?'#5BA81F':s>=3?'#E8A020':'#CC4433';
+}
+
+// Init map centred on London
+const map = L.map('map').setView([51.490, -0.140], 11);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
+  attribution:'&copy; OpenStreetMap &copy; CARTO', maxZoom:19
+}).addTo(map);
+
+let activeMarker = null;
+
+// Area markers
+const areaMarkers = AREAS.map(a => {
+  const col = scoreColour(a.score);
+  const icon = L.divIcon({
+    className:'',
+    html:`<div style="width:36px;height:36px;border-radius:50%;background:${col};border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:13px;font-family:'Helvetica Neue',sans-serif">${a.rank}</div>`,
+    iconSize:[36,36], iconAnchor:[18,18]
+  });
+  const m = L.marker([a.lat, a.lng], {icon}).addTo(map);
+  m.bindPopup(`
+    <div style="font-family:'Helvetica Neue',sans-serif;min-width:200px">
+      <div style="font-size:11px;color:#888;margin-bottom:2px">#${a.rank} — Macro score ${a.score}/5</div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">${a.name} ${a.area}</div>
+      <div style="font-size:11px;color:#444;margin-bottom:8px">${a.note}</div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#888;margin-bottom:4px">Target streets</div>
+      ${a.streets.map(s=>`<div style="font-size:11px;padding:2px 0;border-bottom:1px solid #f0f0ec;color:#222">${s}</div>`).join('')}
+    </div>`);
+  m.on('click', () => {
+    selectArea(a.rank - 1);
+  });
+  return m;
+});
+
+// Live site markers
+LIVE_SITES.forEach(s => {
+  const icon = L.divIcon({
+    className:'',
+    html:`<div style="width:14px;height:14px;border-radius:50%;background:#1C3A0E;border:2.5px solid white;box-shadow:0 2px 5px rgba(0,0,0,.3)"></div>`,
+    iconSize:[14,14], iconAnchor:[7,7]
+  });
+  L.marker([s.lat, s.lng], {icon}).addTo(map)
+    .bindPopup(`<div style="font-family:'Helvetica Neue',sans-serif"><strong>${s.name}</strong><br><span style="font-size:11px;color:#888">${s.bays} bay${s.bays>1?'s':''} — live profitable site</span></div>`);
+});
+
+// Pipeline markers
+PIPELINE_SITES.forEach(s => {
+  const icon = L.divIcon({
+    className:'',
+    html:`<div style="width:12px;height:12px;border-radius:50%;background:#4A90D9;border:2px solid white;box-shadow:0 2px 5px rgba(0,0,0,.3)"></div>`,
+    iconSize:[12,12], iconAnchor:[6,6]
+  });
+  L.marker([s.lat, s.lng], {icon}).addTo(map)
+    .bindPopup(`<div style="font-family:'Helvetica Neue',sans-serif"><strong>${s.name}</strong><br><span style="font-size:11px;color:#888">Pipeline — lease under negotiation</span></div>`);
+});
+
+// Sidebar list
+const listEl = document.getElementById('area-list');
+listEl.innerHTML = AREAS.map((a, i) => `
+  <div class="area-item" id="area-item-${i}" onclick="selectArea(${i})">
+    <div class="ai-rank">#${a.rank}</div>
+    <div class="ai-name">${a.name} <span style="font-size:11px;color:var(--mid);font-weight:400">${a.area}</span>${a.name==='Fulham'?'<span class="live-badge">lease signed</span>':''}</div>
+    <div class="ai-score">Macro ${a.score}/5 · ${a.streets.length} target streets</div>
+  </div>
+  <div class="street-popup" id="streets-${i}">
+    <div class="sp-title">Target streets</div>
+    ${a.streets.map(s=>`<div class="sp-street">${s}</div>`).join('')}
+    <div style="font-size:10px;color:var(--mid);margin-top:6px;line-height:1.5">${a.note}</div>
+  </div>`).join('');
+
+function selectArea(i) {
+  // Deselect previous
+  document.querySelectorAll('.area-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.street-popup').forEach(el => el.classList.remove('visible'));
+  // Select new
+  document.getElementById(`area-item-${i}`).classList.add('active');
+  document.getElementById(`streets-${i}`).classList.add('visible');
+  document.getElementById(`area-item-${i}`).scrollIntoView({behavior:'smooth',block:'nearest'});
+  // Fly to marker
+  const a = AREAS[i];
+  map.flyTo([a.lat, a.lng], 14, {duration:1});
+  areaMarkers[i].openPopup();
+}
+</script>
+</body>
+</html>

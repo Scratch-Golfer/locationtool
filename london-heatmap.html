@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scratch Golf — London Heatmap</title>
+<style>
+:root{--green-deep:#1C3A0E;--green:#2D5016;--green-mid:#3B6D11;--green-light:#EAF0E2;--cream:#F6F3EC;--ink:#1A1A18;--mid:#6B6B63;--rule:#DDD8CC;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Helvetica Neue',sans-serif;background:#111;color:var(--ink);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+header{background:var(--green-deep);height:48px;display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0;z-index:10;}
+.logo{font-size:10px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:white;}
+.hdiv{width:1px;height:18px;background:rgba(255,255,255,.2);}
+.htitle{font-size:12px;color:rgba(255,255,255,.6);flex:1;}
+.shell{flex:1;position:relative;overflow:hidden;}
+#map{position:absolute;inset:0;z-index:1;}
+
+/* Legend */
+.legend{
+  position:absolute;bottom:24px;left:16px;z-index:10;
+  background:rgba(255,255,255,.95);border-radius:10px;
+  padding:12px 14px;box-shadow:0 2px 12px rgba(0,0,0,.2);
+  min-width:160px;
+}
+.leg-title{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mid);margin-bottom:8px;}
+.leg-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:12px;color:var(--ink);}
+.leg-swatch{width:14px;height:14px;border-radius:3px;flex-shrink:0;}
+.leg-row:last-child{margin-bottom:0;}
+
+/* Info panel */
+.info-panel{
+  position:absolute;top:12px;right:12px;z-index:10;
+  background:rgba(255,255,255,.97);border-radius:10px;
+  padding:14px 16px;box-shadow:0 2px 12px rgba(0,0,0,.2);
+  width:220px;display:none;
+}
+.info-panel.visible{display:block;}
+.info-close{position:absolute;top:8px;right:10px;background:none;border:none;font-size:18px;cursor:pointer;color:var(--mid);}
+.info-score{font-size:28px;font-weight:700;line-height:1;margin-bottom:2px;}
+.info-name{font-size:14px;font-weight:600;margin-bottom:4px;}
+.info-pc{font-size:11px;color:var(--mid);margin-bottom:10px;}
+.info-row{display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid #f0f0ec;}
+.info-row:last-child{border-bottom:none;}
+.info-lbl{color:var(--mid);}
+.info-val{font-weight:600;}
+
+/* Filter buttons */
+.filters{
+  position:absolute;top:12px;left:16px;z-index:10;
+  display:flex;gap:6px;flex-wrap:wrap;
+}
+.fbtn{
+  background:rgba(255,255,255,.9);border:none;border-radius:20px;
+  padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer;
+  color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.15);
+  transition:all .15s;
+}
+.fbtn.on{background:var(--green-deep);color:white;}
+.fbtn:hover{background:var(--green-light);}
+.fbtn.on:hover{background:var(--green);}
+</style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+<header>
+  <span class="logo">Scratch Golf</span>
+  <div class="hdiv"></div>
+  <span class="htitle">London Macro Score Heatmap</span>
+</header>
+<div class="shell">
+  <div id="map"></div>
+
+  <div class="filters" id="filters">
+    <button class="fbtn on" onclick="setFilter(0,this)">All</button>
+    <button class="fbtn" onclick="setFilter(4,this)">4-5 only</button>
+    <button class="fbtn" onclick="setFilter(3,this)">3+ only</button>
+  </div>
+
+  <div class="legend">
+    <div class="leg-title">Macro score</div>
+    <div class="leg-row"><div class="leg-swatch" style="background:#1A6B0A"></div>5/5 Exceptional</div>
+    <div class="leg-row"><div class="leg-swatch" style="background:#5CB81F"></div>4/5 Strong match</div>
+    <div class="leg-row"><div class="leg-swatch" style="background:#E8C020"></div>3/5 Moderate</div>
+    <div class="leg-row"><div class="leg-swatch" style="background:#E05030"></div>2/5 Weak</div>
+    <div class="leg-row"><div class="leg-swatch" style="background:#AA1010"></div>1/5 Poor</div>
+    <div style="margin-top:8px;padding-top:8px;border-top:1px solid #eee">
+      <div class="leg-row"><div style="width:14px;height:14px;border-radius:50%;background:#1C3A0E;border:2px solid white;box-shadow:0 0 0 1.5px #1C3A0E;flex-shrink:0"></div>Live site</div>
+      <div class="leg-row"><div style="width:12px;height:12px;border-radius:50%;background:#4A90D9;border:2px solid white;box-shadow:0 0 0 1.5px #4A90D9;flex-shrink:0"></div>Pipeline</div>
+    </div>
+  </div>
+
+  <div class="info-panel" id="info-panel">
+    <button class="info-close" onclick="closeInfo()">×</button>
+    <div class="info-score" id="ip-score"></div>
+    <div class="info-name" id="ip-name"></div>
+    <div class="info-pc" id="ip-pc"></div>
+    <div class="info-row"><span class="info-lbl">Professionals</span><span class="info-val" id="ip-prof"></span></div>
+    <div class="info-row"><span class="info-lbl">Age 30-44</span><span class="info-val" id="ip-age"></span></div>
+    <div class="info-row"><span class="info-lbl">Deprivation</span><span class="info-val" id="ip-dep"></span></div>
+    <div class="info-row"><span class="info-lbl">Social rent</span><span class="info-val" id="ip-srent"></span></div>
+  </div>
+</div>
+
+<script>
+const SCORES = [{"pc": "SW1A 2AA", "name": "Westminster", "lat": 51.503538, "lng": -0.127695, "score": 4, "W": 0.632, "prof": 45.4, "age30": 31.63, "dep": 8.0, "s_rent": 5.97}, {"pc": "SW3 4LY", "name": "Chelsea", "lat": 51.491237, "lng": -0.159392, "score": 3, "W": 0.613, "prof": 52.61, "age30": 24.44, "dep": 8.0, "s_rent": 4.52}, {"pc": "SW4 9DE", "name": "Clapham Common", "lat": 51.457584, "lng": -0.144877, "score": 4, "W": 0.75, "prof": 65.85, "age30": 35.43, "dep": 6.0, "s_rent": 9.67}, {"pc": "SW5 9NB", "name": "Earl's Court", "lat": 51.492207, "lng": -0.195245, "score": 3, "W": 0.388, "prof": 43.75, "age30": 32.51, "dep": 2.0, "s_rent": 5.06}, {"pc": "SW6 4TJ", "name": "Parsons Green", "lat": 51.473759, "lng": -0.202669, "score": 4, "W": 0.688, "prof": 51.47, "age30": 33.82, "dep": 6.0, "s_rent": 18.57}, {"pc": "SW7 2AZ", "name": "South Kensington", "lat": 51.499334, "lng": -0.179178, "score": 3, "W": 0.61, "prof": 43.2, "age30": 23.64, "dep": 10.0, "s_rent": 1.19}, {"pc": "SW8 1HH", "name": "Stockwell", "lat": 51.474508, "lng": -0.121929, "score": 3, "W": 0.438, "prof": 36.33, "age30": 33.54, "dep": 3.0, "s_rent": 30.09}, {"pc": "SW9 8JH", "name": "Brixton", "lat": 51.462954, "lng": -0.112315, "score": 2, "W": 0.225, "prof": 33.89, "age30": 32.47, "dep": 2.0, "s_rent": 28.77}, {"pc": "SW10 0XE", "name": "World's End", "lat": 51.476063, "lng": -0.182951, "score": 4, "W": 0.7, "prof": 49.68, "age30": 36.09, "dep": 5.0, "s_rent": 9.99}, {"pc": "SW12 9EL", "name": "Balham", "lat": 51.44886, "lng": -0.148398, "score": 4, "W": 0.838, "prof": 64.62, "age30": 37.58, "dep": 8.0, "s_rent": 5.51}, {"pc": "SW13 9HE", "name": "Barnes", "lat": 51.47378, "lng": -0.246803, "score": 3, "W": 0.562, "prof": 55.42, "age30": 26.52, "dep": 9.0, "s_rent": 4.05}, {"pc": "SW14 7AE", "name": "Mortlake", "lat": 51.461028, "lng": -0.271703, "score": 3, "W": 0.547, "prof": 56.1, "age30": 24.73, "dep": 10.0, "s_rent": 1.51}, {"pc": "SW15 2PA", "name": "East Putney", "lat": 51.461347, "lng": -0.204265, "score": 4, "W": 0.86, "prof": 66.75, "age30": 41.58, "dep": 10.0, "s_rent": 2.98}, {"pc": "SW16 1LA", "name": "Streatham", "lat": 51.434336, "lng": -0.138108, "score": 4, "W": 0.65, "prof": 48.31, "age30": 37.83, "dep": 5.0, "s_rent": 4.0}, {"pc": "SW17 0RN", "name": "Tooting", "lat": 51.427388, "lng": -0.169189, "score": 3, "W": 0.59, "prof": 41.79, "age30": 35.87, "dep": 4.0, "s_rent": 13.72}, {"pc": "SW18 1UP", "name": "Wandsworth", "lat": 51.458318, "lng": -0.192513, "score": 4, "W": 0.86, "prof": 66.75, "age30": 41.58, "dep": 6.0, "s_rent": 2.98}, {"pc": "SW18 3DS", "name": "Earlsfield", "lat": 51.448367, "lng": -0.183605, "score": 4, "W": 0.675, "prof": 57.85, "age30": 36.04, "dep": 6.0, "s_rent": 5.1}, {"pc": "SW19 1RX", "name": "Wimbledon", "lat": 51.41936, "lng": -0.198318, "score": 4, "W": 0.66, "prof": 58.25, "age30": 35.21, "dep": 7.0, "s_rent": 1.66}, {"pc": "SW20 0AY", "name": "Raynes Park", "lat": 51.409892, "lng": -0.23389, "score": 3, "W": 0.61, "prof": 47.64, "age30": 37.01, "dep": 8.0, "s_rent": 2.75}, {"pc": "SE1 7TL", "name": "Bermondsey", "lat": 51.489, "lng": -0.123, "score": 3, "W": 0.55, "prof": 45.55, "age30": 33.16, "dep": 7.0, "s_rent": 24.68}, {"pc": "SE4 1BQ", "name": "Brockley", "lat": 51.468394, "lng": -0.035288, "score": 3, "W": 0.595, "prof": 37.49, "age30": 34.28, "dep": 5.0, "s_rent": 14.72}, {"pc": "SE5 8QJ", "name": "Camberwell", "lat": 51.472061, "lng": -0.07912, "score": 4, "W": 0.637, "prof": 51.66, "age30": 35.75, "dep": 5.0, "s_rent": 17.13}, {"pc": "SE8 3HX", "name": "Deptford", "lat": 51.48225, "lng": -0.026584, "score": 2, "W": 0.225, "prof": 31.24, "age30": 32.44, "dep": 2.0, "s_rent": 37.24}, {"pc": "SE10 9GB", "name": "Greenwich", "lat": 51.48607, "lng": 0.008553, "score": 4, "W": 0.65, "prof": 54.83, "age30": 39.98, "dep": 6.0, "s_rent": 9.39}, {"pc": "SE11 4JD", "name": "Kennington", "lat": 51.49, "lng": -0.103605, "score": 2, "W": 0.313, "prof": 39.81, "age30": 33.62, "dep": 2.0, "s_rent": 35.45}, {"pc": "SE14 5LJ", "name": "New Cross", "lat": 51.47098, "lng": -0.050685, "score": 3, "W": 0.5, "prof": 41.31, "age30": 33.81, "dep": 4.0, "s_rent": 19.0}, {"pc": "SE16 4PJ", "name": "Rotherhithe", "lat": 51.499597, "lng": -0.062777, "score": 3, "W": 0.438, "prof": 43.94, "age30": 35.92, "dep": 3.0, "s_rent": 28.93}, {"pc": "SE17 2NH", "name": "Walworth", "lat": 51.485882, "lng": -0.092266, "score": 3, "W": 0.413, "prof": 34.32, "age30": 32.97, "dep": 4.0, "s_rent": 40.48}, {"pc": "SE19 1RX", "name": "Crystal Palace", "lat": 51.419644, "lng": -0.081376, "score": 3, "W": 0.45, "prof": 46.45, "age30": 35.2, "dep": 4.0, "s_rent": 12.13}, {"pc": "SE22 8EF", "name": "East Dulwich", "lat": 51.461466, "lng": -0.080055, "score": 4, "W": 0.675, "prof": 58.52, "age30": 38.65, "dep": 6.0, "s_rent": 7.85}, {"pc": "SE24 9LQ", "name": "Herne Hill", "lat": 51.455403, "lng": -0.091565, "score": 3, "W": 0.587, "prof": 62.96, "age30": 28.04, "dep": 6.0, "s_rent": 8.6}, {"pc": "SE25 5QA", "name": "South Norwood", "lat": 51.390074, "lng": -0.088952, "score": 2, "W": 0.325, "prof": 28.89, "age30": 31.69, "dep": 3.0, "s_rent": 11.2}, {"pc": "SE26 4RB", "name": "Sydenham", "lat": 51.433944, "lng": -0.060721, "score": 3, "W": 0.425, "prof": 43.37, "age30": 33.35, "dep": 4.0, "s_rent": 14.76}, {"pc": "N1 2LH", "name": "Islington", "lat": 51.546295, "lng": -0.101061, "score": 4, "W": 0.638, "prof": 58.02, "age30": 35.66, "dep": 6.0, "s_rent": 14.85}, {"pc": "N1C 4AG", "name": "Kings Cross", "lat": 51.532939, "lng": -0.125062, "score": 2, "W": 0.183, "prof": 25.04, "age30": 27.2, "dep": 2.0, "s_rent": 40.71}, {"pc": "N4 3DP", "name": "Finsbury Park", "lat": 51.56906, "lng": -0.117689, "score": 2, "W": 0.288, "prof": 37.28, "age30": 33.41, "dep": 2.0, "s_rent": 37.71}, {"pc": "N5 1LX", "name": "Highbury", "lat": 51.556665, "lng": -0.105765, "score": 4, "W": 0.675, "prof": 55.37, "age30": 37.48, "dep": 6.0, "s_rent": 13.28}, {"pc": "N6 5HX", "name": "Highgate", "lat": 51.570954, "lng": -0.148044, "score": 4, "W": 0.81, "prof": 63.12, "age30": 36.98, "dep": 7.0, "s_rent": 3.23}, {"pc": "N8 9DH", "name": "Crouch End", "lat": 51.580086, "lng": -0.122862, "score": 4, "W": 0.713, "prof": 58.48, "age30": 36.83, "dep": 6.0, "s_rent": 4.56}, {"pc": "N10 3LR", "name": "Muswell Hill", "lat": 51.591153, "lng": -0.145665, "score": 4, "W": 0.65, "prof": 57.1, "age30": 31.74, "dep": 6.0, "s_rent": 4.47}, {"pc": "N12 0AH", "name": "North Finchley", "lat": 51.603226, "lng": -0.173056, "score": 3, "W": 0.462, "prof": 39.33, "age30": 29.92, "dep": 5.0, "s_rent": 7.98}, {"pc": "N15 3AB", "name": "Seven Sisters", "lat": 51.583987, "lng": -0.093168, "score": 2, "W": 0.35, "prof": 26.99, "age30": 33.91, "dep": 3.0, "s_rent": 19.47}, {"pc": "N16 5HX", "name": "Stoke Newington", "lat": 51.570141, "lng": -0.07952, "score": 3, "W": 0.4, "prof": 32.98, "age30": 25.33, "dep": 4.0, "s_rent": 18.71}, {"pc": "N19 4NF", "name": "Archway", "lat": 51.566219, "lng": -0.122264, "score": 3, "W": 0.413, "prof": 37.28, "age30": 33.41, "dep": 3.0, "s_rent": 37.71}, {"pc": "N21 3RX", "name": "Winchmore Hill", "lat": 51.631242, "lng": -0.096476, "score": 3, "W": 0.46, "prof": 48.83, "age30": 27.35, "dep": 8.0, "s_rent": 2.52}, {"pc": "NW1 8NJ", "name": "Camden", "lat": 51.540531, "lng": -0.14279, "score": 3, "W": 0.383, "prof": 43.19, "age30": 30.61, "dep": 2.0, "s_rent": 15.85}, {"pc": "NW3 4QT", "name": "Belsize Park", "lat": 51.549838, "lng": -0.164479, "score": 4, "W": 0.82, "prof": 63.65, "age30": 37.39, "dep": 7.0, "s_rent": 4.47}, {"pc": "NW3 6TE", "name": "Hampstead", "lat": 51.555775, "lng": -0.178464, "score": 4, "W": 0.713, "prof": 65.89, "age30": 30.66, "dep": 6.0, "s_rent": 6.07}, {"pc": "NW5 2XA", "name": "Kentish Town", "lat": 51.551648, "lng": -0.13612, "score": 3, "W": 0.55, "prof": 44.43, "age30": 30.77, "dep": 6.0, "s_rent": 33.65}, {"pc": "NW8 0PD", "name": "St Johns Wood", "lat": 51.535295, "lng": -0.179368, "score": 3, "W": 0.575, "prof": 45.74, "age30": 31.57, "dep": 7.0, "s_rent": 14.38}, {"pc": "NW10 4EP", "name": "Kensal Rise", "lat": 51.538334, "lng": -0.246109, "score": 2, "W": 0.25, "prof": 23.6, "age30": 30.8, "dep": 1.0, "s_rent": 9.62}, {"pc": "W1F 0EW", "name": "Soho", "lat": 51.513208, "lng": -0.132905, "score": 3, "W": 0.59, "prof": 46.46, "age30": 33.71, "dep": 4.0, "s_rent": 8.95}, {"pc": "W4 1PD", "name": "Chiswick", "lat": 51.492798, "lng": -0.258202, "score": 4, "W": 0.675, "prof": 52.55, "age30": 34.62, "dep": 6.0, "s_rent": 7.3}, {"pc": "W10 5BE", "name": "Ladbroke Grove", "lat": 51.526401, "lng": -0.210847, "score": 2, "W": 0.163, "prof": 25.81, "age30": 29.28, "dep": 2.0, "s_rent": 41.48}, {"pc": "W11 2RU", "name": "Notting Hill", "lat": 51.514484, "lng": -0.197867, "score": 4, "W": 0.7, "prof": 55.3, "age30": 32.89, "dep": 7.0, "s_rent": 3.91}, {"pc": "W14 0LH", "name": "West Kensington", "lat": 51.499137, "lng": -0.214479, "score": 4, "W": 0.663, "prof": 51.72, "age30": 33.87, "dep": 6.0, "s_rent": 9.67}, {"pc": "E1 6RF", "name": "Whitechapel", "lat": 51.518014, "lng": -0.070975, "score": 3, "W": 0.403, "prof": 38.21, "age30": 35.84, "dep": 2.0, "s_rent": 10.97}, {"pc": "E2 9JW", "name": "Bethnal Green", "lat": 51.533284, "lng": -0.048716, "score": 3, "W": 0.413, "prof": 34.73, "age30": 34.2, "dep": 4.0, "s_rent": 26.36}, {"pc": "E3 2JG", "name": "Bow", "lat": 51.536383, "lng": -0.022294, "score": 3, "W": 0.52, "prof": 46.09, "age30": 40.51, "dep": 3.0, "s_rent": 10.96}, {"pc": "E5 8QJ", "name": "Hackney", "lat": 51.555659, "lng": -0.066094, "score": 2, "W": 0.313, "prof": 36.88, "age30": 35.88, "dep": 2.0, "s_rent": 24.09}, {"pc": "E8 3RL", "name": "London Fields", "lat": 51.537562, "lng": -0.059033, "score": 3, "W": 0.588, "prof": 50.58, "age30": 39.36, "dep": 3.0, "s_rent": 13.17}, {"pc": "E9 5HJ", "name": "Hackney Wick", "lat": 51.541604, "lng": -0.025157, "score": 3, "W": 0.587, "prof": 40.94, "age30": 36.6, "dep": 6.0, "s_rent": 12.26}, {"pc": "E10 6AH", "name": "Leyton", "lat": 51.57415, "lng": -0.009849, "score": 2, "W": 0.347, "prof": 33.36, "age30": 32.94, "dep": 3.0, "s_rent": 2.82}, {"pc": "E11 1QR", "name": "Leytonstone", "lat": 51.570632, "lng": 0.002971, "score": 3, "W": 0.497, "prof": 42.84, "age30": 36.17, "dep": 3.0, "s_rent": 3.05}, {"pc": "E15 2HB", "name": "Stratford", "lat": 51.548457, "lng": -0.02248, "score": 2, "W": 0.313, "prof": 36.93, "age30": 35.05, "dep": 2.0, "s_rent": 20.39}, {"pc": "E17 3AP", "name": "Walthamstow", "lat": 51.58389, "lng": -0.018907, "score": 4, "W": 0.625, "prof": 40.33, "age30": 37.47, "dep": 5.0, "s_rent": 6.49}, {"pc": "EC1V 9HL", "name": "Old Street", "lat": 51.523627, "lng": -0.098012, "score": 3, "W": 0.595, "prof": 44.57, "age30": 32.44, "dep": 5.0, "s_rent": 30.64}, {"pc": "EC2A 3AT", "name": "Shoreditch", "lat": 51.526761, "lng": -0.080106, "score": 4, "W": 0.715, "prof": 52.94, "age30": 39.04, "dep": 4.0, "s_rent": 18.67}];
+
+const SCORE_COLOURS = {
+  1:'#AA1010', 2:'#E05030', 3:'#E8C020', 4:'#5CB81F', 5:'#1A6B0A'
+};
+const SCORE_LABELS = {1:'1/5 Poor',2:'2/5 Weak',3:'3/5 Moderate',4:'4/5 Strong',5:'5/5 Exceptional'};
+
+const LIVE=[{name:'Balham (live)',lat:51.4489,lng:-0.1484},{name:'Wandsworth (live)',lat:51.454,lng:-0.191}];
+const PIPE=[{name:'Heathmans Road (pipeline)',lat:51.474,lng:-0.202}];
+
+const map=L.map('map',{zoomControl:false}).setView([51.505,-0.130],11);
+L.control.zoom({position:'bottomright'}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+  attribution:'&copy; OpenStreetMap &copy; CARTO',maxZoom:19
+}).addTo(map);
+
+let allMarkers = [];
+let filterMin = 0;
+
+function scoreSize(s){ return s>=4?48:s>=3?38:28; }
+function scoreOpacity(s){ return s>=4?0.92:s>=3?0.80:0.65; }
+
+function buildMarkers(){
+  allMarkers.forEach(m=>map.removeLayer(m));
+  allMarkers=[];
+  SCORES.filter(d=>d.score>=filterMin).forEach(d=>{
+    const col=SCORE_COLOURS[d.score]||'#888';
+    const sz=scoreSize(d.score);
+    const op=scoreOpacity(d.score);
+    const icon=L.divIcon({
+      className:'',
+      html:`<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${col};opacity:${op};border:2px solid rgba(255,255,255,0.6);box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:${sz>=44?14:sz>=36?12:10}px;font-family:'Helvetica Neue',sans-serif">${d.score}</div>`,
+      iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]
+    });
+    const m=L.marker([d.lat,d.lng],{icon,zIndexOffset:d.score*100}).addTo(map);
+    m.on('click',()=>showInfo(d));
+    allMarkers.push(m);
+  });
+}
+
+function showInfo(d){
+  const col=SCORE_COLOURS[d.score];
+  document.getElementById('ip-score').textContent=d.score+'/5';
+  document.getElementById('ip-score').style.color=col;
+  document.getElementById('ip-name').textContent=d.name;
+  document.getElementById('ip-pc').textContent=d.pc+' · '+SCORE_LABELS[d.score];
+  document.getElementById('ip-prof').textContent=d.prof.toFixed(0)+'%  (bench 66%)';
+  document.getElementById('ip-age').textContent=d.age30.toFixed(0)+'%  (bench 40%)';
+  document.getElementById('ip-dep').textContent=d.dep+'/10  (bench 4)';
+  document.getElementById('ip-srent').textContent=d.s_rent.toFixed(1)+'%  (bench 4.25%)';
+  document.getElementById('info-panel').classList.add('visible');
+}
+
+function closeInfo(){
+  document.getElementById('info-panel').classList.remove('visible');
+}
+
+function setFilter(min, btn){
+  filterMin=min;
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  buildMarkers();
+}
+
+// Live sites
+LIVE.forEach(s=>{
+  const icon=L.divIcon({className:'',
+    html:`<div style="width:16px;height:16px;border-radius:50%;background:#1C3A0E;border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,.5)"></div>`,
+    iconSize:[16,16],iconAnchor:[8,8]});
+  L.marker([s.lat,s.lng],{icon,zIndexOffset:1000}).addTo(map)
+    .bindPopup(`<div style="font-family:'Helvetica Neue',sans-serif"><strong>${s.name}</strong></div>`);
+});
+
+PIPE.forEach(s=>{
+  const icon=L.divIcon({className:'',
+    html:`<div style="width:13px;height:13px;border-radius:50%;background:#4A90D9;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.5)"></div>`,
+    iconSize:[13,13],iconAnchor:[6.5,6.5]});
+  L.marker([s.lat,s.lng],{icon,zIndexOffset:900}).addTo(map)
+    .bindPopup(`<div style="font-family:'Helvetica Neue',sans-serif"><strong>${s.name}</strong></div>`);
+});
+
+buildMarkers();
+</script>
+</body>
+</html>

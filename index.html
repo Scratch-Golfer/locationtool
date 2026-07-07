@@ -1020,35 +1020,53 @@ function showV2Card(s){
 }
 async function runV2Macro(){
   var s=sites.find(function(x){return x.id===curId;});if(!s)return;
-  var pc=xpc(s.address);if(!pc){alert('No UK postcode found in this address. Click "Edit address" to add one, e.g. append SW11 2PP to the address.');return;}
+  var pc=xpc(s.address);
+  if(!pc){alert('No UK postcode found. Click Edit address and add the postcode, e.g. N8 9DH');return;}
   var btn=g('v2-macro-btn');btn.disabled=true;btn.textContent='Running...';
   var steps=['Fetching demographics','Fetching deprivation','Computing score'];svp(steps,0,'run','');
   try{
     var ep=encodeURIComponent(pc);
-    var[dr,pr]=await Promise.all([
-      fetch('https://api.homedata.co.uk/api/demographics/?postcode='+ep,{mode:'cors',headers:{'Authorization':'Api-Key EyVRzn5O.UePfMTpM7rldFJL55Do9PeyzrEE1METa','Accept':'application/json'}}),
-      fetch('https://api.homedata.co.uk/api/deprivation/?postcode='+ep,{mode:'cors',headers:{'Authorization':'Api-Key EyVRzn5O.UePfMTpM7rldFJL55Do9PeyzrEE1METa','Accept':'application/json'}})
-    ]);
-    var dem=await dr.json();var dep=await pr.json();
-    if(dem.postcode===undefined&&dem.content){{dem=JSON.parse(dem.content[0].text||'{{}}');}}
-    if(dep.overall===undefined&&dep.content){{dep=JSON.parse(dep.content[0].text||'{{}}');}}
-    if(dem.error)throw new Error(dem.error.message||'Postcode not found');
+    var demRes=await fetch('https://api.homedata.co.uk/api/demographics/?postcode='+ep,{headers:{'Authorization':'Api-Key EyVRzn5O.UePfMTpM7rldFJL55Do9PeyzrEE1METa','Accept':'application/json'}});
+    var dem=await demRes.json();
+    if(!demRes.ok||dem.error){throw new Error((dem.error&&dem.error.message)||'Demographics fetch failed ('+demRes.status+')');}
+    svp(steps,1,'run','');
+    var depRes=await fetch('https://api.homedata.co.uk/api/deprivation/?postcode='+ep,{headers:{'Authorization':'Api-Key EyVRzn5O.UePfMTpM7rldFJL55Do9PeyzrEE1METa','Accept':'application/json'}});
+    var dep=await depRes.json();
     svp(steps,2,'run','');
-    var d={professionals:parseFloat((dem.occupation||{}).managerial_professional_pct||0),age_30_44:parseFloat((dem.age||{}).age_30_44_pct||0),age_16_29:parseFloat((dem.age||{}).age_16_29_pct||0),private_rent:parseFloat((dem.tenure||{}).private_rented_pct||0),social_rent:parseFloat((dem.tenure||{}).social_rented_pct||0),deprivation:parseFloat(((dep.overall)||{}).score||4)};
-    var W=cmw(d),score=Math.min(5,Math.max(1,Math.round(1+W*4)));
-    var rsn=[d.professionals>=59?'Professional density ('+d.professionals.toFixed(0)+'%) is close to benchmark.':'Professional density ('+d.professionals.toFixed(0)+'%) is below the 66% benchmark.',(d.age_30_44+d.age_16_29)>=58?'Strong 25-44 age concentration ('+(d.age_30_44+d.age_16_29).toFixed(0)+'% combined).':'25-44 age at '+(d.age_30_44+d.age_16_29).toFixed(0)+'% — below benchmark.',d.deprivation>=3.4?'Deprivation ('+d.deprivation+'/10) consistent with live sites.':'Deprivation ('+d.deprivation+'/10) below benchmark.'].join(' ');
-    svp(steps,2,'done','Score '+score+'/5');g('v2-progress').style.display='none';
-    g('v2-macro-bubble').textContent=score;g('v2-macro-bubble').className='score-bubble '+sc5(score);g('v2-macro-reasoning').textContent=rsn;g('v2-macro-result').style.display='block';
-    await patchSite(curId,{macro_score_v2:score,macro_score_v2_reasoning:rsn,macro_score_data:JSON.stringify(d)},function(){});
-    var s2=sites.find(function(x){return x.id===curId;});if(s2&&s2.micro_score_v2!=null){g('v2-combined-wrap').style.display='block';g('v2-combined-val').textContent=((score+ +s2.micro_score_v2)/2).toFixed(1)+'/5';}
-  }catch(e){svp(steps,0,'err',e.message);}
+    var d={
+      professionals:parseFloat(((dem.occupation)||{}).managerial_professional_pct||0),
+      age_30_44:parseFloat(((dem.age)||{}).age_30_44_pct||0),
+      age_16_29:parseFloat(((dem.age)||{}).age_16_29_pct||0),
+      private_rent:parseFloat(((dem.tenure)||{}).private_rented_pct||0),
+      social_rent:parseFloat(((dem.tenure)||{}).social_rented_pct||0),
+      deprivation:parseFloat(((dep.overall)||{}).score||4)
+    };
+    var W=cmw(d);
+    var score=Math.min(5,Math.max(1,Math.round(1+W*4)));
+    var rsn=[];
+    rsn.push(d.professionals>=59?'Professional density ('+d.professionals.toFixed(0)+'%) is close to benchmark.':'Professional density ('+d.professionals.toFixed(0)+'%) is below the 66% benchmark.');
+    rsn.push((d.age_30_44+d.age_16_29)>=58?'Strong 25-44 age concentration ('+(d.age_30_44+d.age_16_29).toFixed(0)+'% combined).':'25-44 age at '+(d.age_30_44+d.age_16_29).toFixed(0)+'% — below benchmark.');
+    rsn.push(d.deprivation>=3.4?'Deprivation ('+d.deprivation+'/10) consistent with live sites.':'Deprivation ('+d.deprivation+'/10) below benchmark.');
+    var reasoning=rsn.join(' ');
+    svp(steps,2,'done','Score '+score+'/5');
+    g('v2-progress').style.display='none';
+    g('v2-macro-bubble').textContent=score;
+    g('v2-macro-bubble').className='score-bubble '+sc5(score);
+    g('v2-macro-reasoning').textContent=reasoning;
+    g('v2-macro-result').style.display='block';
+    await patchSite(curId,{macro_score_v2:score,macro_score_v2_reasoning:reasoning,macro_score_data:JSON.stringify(d)},function(){});
+    var s2=sites.find(function(x){return x.id===curId;});
+    if(s2&&s2.micro_score_v2!=null){
+      g('v2-combined-wrap').style.display='block';
+      g('v2-combined-val').textContent=((score+ +s2.micro_score_v2)/2).toFixed(1)+'/5';
+    }
+  }catch(e){
+    svp(steps,0,'err',e.message);
+    console.error('Macro score error:',e);
+  }
   btn.disabled=false;btn.textContent='Re-run macro score';
 }
-var LT=new Set(['gym','fitness_center','spa','beauty_salon','hair_care','cafe','coffee_shop','bar','restaurant','food','bakery','clothing_store','shoe_store','book_store','supermarket','grocery_or_supermarket','pharmacy','art_gallery','movie_theater','yoga','pilates','sports_club','sporting_goods_store']);
-var NT=new Set(['car_repair','car_wash','car_dealer','gas_station','parking','storage','moving_company','general_contractor','laundry','funeral_home','liquor_store','casino']);
-function cv2(t){var s=new Set(t);if([...s].some(function(x){return NT.has(x)}))return'neg';if([...s].some(function(x){return LT.has(x)}))return'pos';return'neu';}
-function vs5(pl){var t=pl.reduce(function(s,p){return s+(p.user_ratings_total||0);},0);return t>=15000?5:t>=8000?4:t>=3000?3:t>=1000?2:1;}
-function is5(pl){var ac=pl.filter(function(p){return(p.user_ratings_total||0)>0;});if(!ac.length)return 1;var pr=ac.filter(function(p){return cv2(p.types)==='pos';}).reduce(function(s,p){return s+(p.user_ratings_total||0);},0);var nr=ac.filter(function(p){return cv2(p.types)==='neg';}).reduce(function(s,p){return s+(p.user_ratings_total||0);},0);var tr=ac.reduce(function(s,p){return s+(p.user_ratings_total||0);},0);var a=(pr/Math.max(tr,1))-(nr/Math.max(tr,1))*.5;return a>=.65?5:a>=.45?4:a>=.28?3:a>=.12?2:1;}
+
 async function runV2Micro(){
   var s=sites.find(function(x){return x.id===curId;});if(!s)return;
   var btn=g('v2-micro-btn');btn.disabled=true;btn.textContent='Running...';

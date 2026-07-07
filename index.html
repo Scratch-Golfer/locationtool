@@ -226,6 +226,7 @@ textarea:focus{border-color:#3B6D11;}
       <button class="ghost-btn" id="btn-add-prosp">+ Add prospecting</button>
       <button class="ghost-btn" id="btn-refresh">Refresh</button>
       <button class="ghost-btn" id="btn-batch-score" onclick="runBatchScore()" style="color:#3B6D11;border-color:#3B6D11">⚡ Score all</button>
+      <button class="ghost-btn" id="btn-recalc" onclick="recalcMicro100m()" style="color:#854F0B;border-color:#854F0B">↻ Recalc micro</button>
       <button class="logout-btn" id="btn-logout">Sign out</button>
     </div>
   </div>
@@ -1351,6 +1352,69 @@ async function runV2Micro(){
 }
 function editAddress(){/* now inline */}
 var sortMode='date';
+
+async function recalcMicro100m(){
+  var targets=sites.filter(function(s){
+    return !isRej(s)&&s.micro_score_v2!=null&&s.lat&&s.lng&&s.micro_score_data&&s.micro_score_data!='{}';
+  });
+  var noData=sites.filter(function(s){
+    return !isRej(s)&&s.micro_score_v2!=null&&s.lat&&s.lng&&(!s.micro_score_data||s.micro_score_data=='{}');
+  });
+  if(!targets.length&&!noData.length){alert('No scored sites with location data found.');return;}
+  var msg='Recalculate micro scores using 100m radius for '+targets.length+' sites (no API calls for these).';
+  if(noData.length)msg+='\n\n'+noData.length+' sites need a fresh 100m fetch (one Google Places call each).';
+  if(!confirm(msg))return;
+
+  var btn=g('btn-recalc');btn.disabled=true;btn.textContent='↻ Recalculating...';
+  var done=0,errors=0;
+  var allTargets=targets.concat(noData);
+
+  for(var i=0;i<allTargets.length;i++){
+    var s=allTargets[i];
+    btn.textContent='↻ Recalc '+(i+1)+'/'+allTargets.length;
+    try{
+      var lat=parseFloat(s.lat);var lng=parseFloat(s.lng);
+      var existingData=null;
+      try{existingData=JSON.parse(s.micro_score_data);}catch(e){}
+      var aiScore=existingData&&existingData.ai_score!=null?existingData.ai_score:3;
+
+      // Fetch 100m places
+      var r100=await fetch('https://places.googleapis.com/v1/places:searchNearby',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-Goog-Api-Key':GK,'X-Goog-FieldMask':'places.displayName,places.types,places.userRatingCount'},
+        body:JSON.stringify({locationRestriction:{circle:{center:{latitude:lat,longitude:lng},radius:100.0}},maxResultCount:20})
+      });
+      var d100=await r100.json();
+      var pl100=(d100.places||[]).map(function(p){return{name:(p.displayName||{}).text||'',types:p.types||['establishment'],user_ratings_total:p.userRatingCount||0};});
+
+      // Recalculate using 100m data for vol + intent
+      var vScore=vs5(pl100);
+      var iScore=is5(pl100);
+      var newMicro=Math.min(5,Math.max(1,Math.round(vScore*0.30+iScore*0.35+aiScore*0.35)));
+
+      // Save updated data
+      var newData=JSON.stringify({
+        vol_score:vScore,intent_score:iScore,ai_score:aiScore,
+        places:pl100,radius:'100m',
+        prev_score:s.micro_score_v2,
+        total_reviews:pl100.reduce(function(s,p){return s+(p.user_ratings_total||0);},0),
+        pos_count:pl100.filter(function(p){return cv2(p.types)==='pos';}).length
+      });
+      await patchSite(s.id,{micro_score_v2:newMicro,micro_score_data:newData});
+      s.micro_score_v2=newMicro;s.micro_score_data=newData;
+      done++;
+    }catch(e){
+      console.error('Recalc error for '+s.address,e);
+      errors++;
+    }
+    await new Promise(function(r){setTimeout(r,300);});
+  }
+
+  btn.disabled=false;btn.textContent='↻ Recalc micro';
+  renderList();
+  alert('Done! '+done+' sites recalculated'+(errors?' ('+errors+' errors)':'')+'.');
+}
+
 
 // Batch scoring
 var batchRunning=false;

@@ -230,13 +230,18 @@ textarea:focus{border-color:#3B6D11;}
         </div>
         <div id="tasks-panel-list"><div class="empty" style="padding:1rem;">No outstanding tasks.</div></div>
       </div>
-      <div class="pipeline">
-        <div class="pipe-stage"><div class="pipe-lbl">Prospecting</div><div class="pipe-name">No floor plan yet</div><div class="pipe-n" id="ps-0">&mdash;</div></div>
-        <div class="pipe-stage"><div class="pipe-lbl">Stage 1</div><div class="pipe-name">Floor plan</div><div class="pipe-n" id="ps-1">&mdash;</div></div>
-        <div class="pipe-stage"><div class="pipe-lbl">Stage 2</div><div class="pipe-name">Location score</div><div class="pipe-n" id="ps-2">&mdash;</div></div>
-        <div class="pipe-stage"><div class="pipe-lbl">Stage 3</div><div class="pipe-name">Site viewing</div><div class="pipe-n" id="ps-3">&mdash;</div></div>
-        <div class="pipe-stage"><div class="pipe-lbl">Stage 4</div><div class="pipe-name">Proceed to offer</div><div class="pipe-n" id="ps-4">&mdash;</div></div>
-        <div class="pipe-stage pipe-rej"><div class="pipe-lbl">Rejected</div><div class="pipe-name">All stages</div><div class="pipe-n" id="ps-rej">&mdash;</div></div>
+      <div id="pipeline-wrap">
+        <div class="pipeline">
+          <div class="pipe-stage"><div class="pipe-lbl">Prospecting</div><div class="pipe-n" id="ps-0">&mdash;</div></div>
+          <div class="pipe-stage"><div class="pipe-lbl">Stage 1</div><div class="pipe-n" id="ps-1">&mdash;</div></div>
+          <div class="pipe-stage"><div class="pipe-lbl">Stage 2</div><div class="pipe-n" id="ps-2">&mdash;</div></div>
+          <div class="pipe-stage"><div class="pipe-lbl">Stage 3</div><div class="pipe-n" id="ps-3">&mdash;</div></div>
+          <div class="pipe-stage"><div class="pipe-lbl">Stage 4</div><div class="pipe-n" id="ps-4">&mdash;</div></div>
+          <div class="pipe-stage pipe-rej"><div class="pipe-lbl">Rejected</div><div class="pipe-n" id="ps-rej">&mdash;</div></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0;padding:0 0 0 0">
+        <button onclick="document.getElementById('pipeline-wrap').style.display=document.getElementById('pipeline-wrap').style.display==='none'?'block':'none'" style="font-size:11px;color:#9b9a95;background:none;border:none;cursor:pointer;padding:4px 12px 4px 0;white-space:nowrap">⊟ Summary</button>
       </div>
       <div class="filters">
         <button class="ftab on" data-f="all">All active</button>
@@ -247,7 +252,7 @@ textarea:focus{border-color:#3B6D11;}
         <button class="ftab" data-f="s4">Stage 4</button>
         <button class="ftab" data-f="rejected">Rejected</button>
       </div>
-      <div id="cards-wrap"><table id="cards-table"><thead><tr><th>Address</th><th>Stage</th><th>Scores</th><th>Bays</th><th>Agent</th><th>Action</th><th>Added</th></tr></thead><tbody id="cards"></tbody></table></div>
+      <div id="cards-wrap"><table id="cards-table"><thead><tr><th>Address</th><th>Stage</th><th>Scores</th><th>Size</th><th>Rent p.a.</th><th>£/sqft</th><th>Bays</th><th>Agent</th><th>Action</th><th>Added</th></tr></thead><tbody id="cards"></tbody></table></div>
     </div>
 
     <div id="detail-view" style="display:none;">
@@ -309,7 +314,7 @@ textarea:focus{border-color:#3B6D11;}
       </div>
 
 <!-- Stage 0: Prospecting -->
-      <div id="sec-s0" style="display:none;">
+      <div id="sec-s0">
         <div class="dv-card">
           <div class="sec-lbl">Prospecting</div>
           <p style="font-size:13px;color:#666;line-height:1.7;margin-bottom:1rem;">No floor plan yet. Add a listing link and notes below, then upload a floor plan when available.</p>
@@ -339,7 +344,7 @@ textarea:focus{border-color:#3B6D11;}
       </div>
 
       <!-- Stage 1: Floor plan -->
-      <div id="sec-s1" style="display:none;">
+      <div id="sec-s1">
         <div class="dv-card">
           <div class="sec-lbl">Floor plan &amp; bay planner</div>
           <div id="no-fp">
@@ -417,7 +422,7 @@ textarea:focus{border-color:#3B6D11;}
       </div>
 
       <!-- Stage 2: Location scoring -->
-      <div id="sec-s2" style="display:none;">
+      <div id="sec-s2">
         <div class="dv-card">
           <div class="sec-lbl">Site coordinates</div>
           <label class="field-lbl">Coordinates (from Google Maps)</label>
@@ -431,7 +436,7 @@ textarea:focus{border-color:#3B6D11;}
       </div>
 
       <!-- Stage 3: Site viewing -->
-      <div id="sec-s3" style="display:none;">
+      <div id="sec-s3">
         <div class="dv-card">
           <div class="sec-lbl">Site viewing</div>
           <div class="stage3-ph">Site viewing stage &mdash; coming soon.<br><span style="font-size:11px;opacity:.6;">Checklists, viewing notes and sign-off will go here.</span></div>
@@ -439,7 +444,7 @@ textarea:focus{border-color:#3B6D11;}
       </div>
 
       <!-- Stage 4: Proceed to offer -->
-      <div id="sec-s4" style="display:none;">
+      <div id="sec-s4">
         <div class="dv-card">
           <div class="sec-lbl">Proceed to offer</div>
           <p style="font-size:13px;color:#666;line-height:1.7;margin-bottom:1rem;">This site has been approved to proceed to offer.</p>
@@ -716,9 +721,8 @@ function openDetail(id){setTimeout(function(){var sx=sites.find(function(x){retu
   g('dv-tot').textContent=(s.rent&&s.service_charge!=null&&s.sqft)?fT(s.rent,s.service_charge,s.sqft):'—';
   g('dv-agent').textContent=s.agent_name||'—';g('dv-agency').textContent=s.agency_name||'—';
   g('dv-date').textContent=fD(s.submitted_at);
-  // Show correct stage section
-  ['sec-s0','sec-s1','sec-s2','sec-s3','sec-s4'].forEach(function(id){g(id).style.display='none';});
-  if(stage>=0&&stage<=4)g('sec-s'+stage).style.display='block';
+  // All sections always visible - no stage gating
+  ['sec-s0','sec-s1','sec-s2','sec-s3','sec-s4'].forEach(function(id){if(g(id))g(id).style.display='block';});
   // Stage-specific population
   if(stage===0){
     g('p0-notes').value=s.notes||'';

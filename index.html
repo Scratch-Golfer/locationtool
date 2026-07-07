@@ -615,6 +615,9 @@ g('btn-logout').addEventListener('click',function(){location.reload();});
 
 // Data
 async function loadSites(){
+  if(g('list-view'))g('list-view').style.display='flex';
+  if(g('detail-view'))g('detail-view').style.display='none';
+  curId=null;
   g('cards').innerHTML='<div class="empty">Loading\u2026</div>';
   var r=await db.from('sites').select('*').order('submitted_at',{ascending:false});
   if(r.error){g('cards').innerHTML='<div class="empty">Error: '+r.error.message+'</div>';return;}

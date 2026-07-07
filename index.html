@@ -1025,8 +1025,14 @@ async function runV2Macro(){
   var steps=['Fetching demographics','Fetching deprivation','Computing score'];svp(steps,0,'run','');
   try{
     var ep=encodeURIComponent(pc);
-    var[dr,pr]=await Promise.all([fetch('https://api.homedata.co.uk/api/demographics/?postcode='+ep+'&api_key='+HK),fetch('https://api.homedata.co.uk/api/deprivation/?postcode='+ep+'&api_key='+HK)]);
+    var SUPABASE_URL2='https://mfhcqxquzjknzifjebvu.supabase.co';
+    var[dr,pr]=await Promise.all([
+      fetch(SUPABASE_URL2+'/functions/v1/hyper-worker',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON_KEY},body:JSON.stringify({homedata_url:'https://api.homedata.co.uk/api/demographics/?postcode='+ep})}),
+      fetch(SUPABASE_URL2+'/functions/v1/hyper-worker',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON_KEY},body:JSON.stringify({homedata_url:'https://api.homedata.co.uk/api/deprivation/?postcode='+ep})})
+    ]);
     var dem=await dr.json();var dep=await pr.json();
+    if(dem.postcode===undefined&&dem.content){{dem=JSON.parse(dem.content[0].text||'{{}}');}}
+    if(dep.overall===undefined&&dep.content){{dep=JSON.parse(dep.content[0].text||'{{}}');}}
     if(dem.error)throw new Error(dem.error.message||'Postcode not found');
     svp(steps,2,'run','');
     var d={professionals:parseFloat((dem.occupation||{}).managerial_professional_pct||0),age_30_44:parseFloat((dem.age||{}).age_30_44_pct||0),age_16_29:parseFloat((dem.age||{}).age_16_29_pct||0),private_rent:parseFloat((dem.tenure||{}).private_rented_pct||0),social_rent:parseFloat((dem.tenure||{}).social_rented_pct||0),deprivation:parseFloat(((dep.overall)||{}).score||4)};

@@ -1302,7 +1302,7 @@ async function runV2Micro(){
     if(streetName){
       streetName2=streetName;
       try{
-        var sr=await fetch('https://places.googleapis.com/v1/places:searchText',{method:'POST',headers:{'Content-Type':'application/json','X-Goog-Api-Key':GK,'X-Goog-FieldMask':'places.displayName,places.types,places.userRatingCount'},body:JSON.stringify({textQuery:'businesses on '+streetName+' London',locationBias:{circle:{center:{latitude:lat,longitude:lng},radius:300.0}}})});
+        var sr=await fetch('https://places.googleapis.com/v1/places:searchNearby',{method:'POST',headers:{'Content-Type':'application/json','X-Goog-Api-Key':GK,'X-Goog-FieldMask':'places.displayName,places.types,places.userRatingCount'},body:JSON.stringify({locationRestriction:{circle:{center:{latitude:lat,longitude:lng},radius:100.0}},maxResultCount:20})});
         var sd=await sr.json();
         streetPlaces=(sd.places||[]).map(function(p){return{name:(p.displayName||{}).text||'',types:p.types||['establishment'],user_ratings_total:p.userRatingCount||0};});
       }catch(e){console.log('Street search failed:',e);}

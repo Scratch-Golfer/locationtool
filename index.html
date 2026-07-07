@@ -563,7 +563,21 @@ var MICRO_DESCS={
   4:'<strong>4 &mdash; On a high street or prominent road:</strong> High visibility, easy to find, safe at night, strong residential catchment.'
 };
 
-function g(id){return document.getElementById(id);}
+function g(id){
+  var el=document.getElementById(id);
+  if(!el){
+    // Return a dummy object so callers don't crash when element is missing
+    return {style:{},textContent:'',innerHTML:'',value:'',className:'',
+            querySelectorAll:function(){return[];},
+            querySelector:function(){return null;},
+            classList:{add:function(){},remove:function(){},contains:function(){return false;}},
+            addEventListener:function(){},
+            setAttribute:function(){},
+            getAttribute:function(){return null;},
+            disabled:false,checked:false,href:'',src:''};
+  }
+  return el;
+}
 function fR(n){return '\u00a3'+Number(n).toLocaleString('en-GB')+' p.a.';}
 function fS(n){return n>0?'\u00a3'+Number(n).toFixed(2)+'/sq ft p.a.':'Inclusive';}
 function fT(r,s,q){return '\u00a3'+Math.round(Number(r)+Number(s)*Number(q)).toLocaleString('en-GB')+' p.a.';}

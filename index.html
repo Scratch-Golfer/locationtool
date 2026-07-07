@@ -1147,6 +1147,59 @@ var BV={professionals:66,age_30_44:40,age_16_29:26,private_rent:39.8,social_rent
 var WV={professionals:.35,age_30_44:.15,age_16_29:.10,deprivation:.25,private_rent:.10,social_rent:.05};
 var TV=[[1.10,1.00],[0.90,0.80],[0.75,0.55],[0.55,0.30],[0.00,0.05]];
 function xpc(a){var m=(a||'').toUpperCase().match(/([A-Z]{1,2}\d{1,2}[A-Z]?)\s*(\d[A-Z]{2})/);return m?m[1]+' '+m[2]:null;}
+// Venue classification for micro score
+var LT=new Set(['gym','fitness_center','spa','beauty_salon','hair_care','cafe','coffee_shop','bar','restaurant','food','bakery','clothing_store','shoe_store','book_store','supermarket','grocery_or_supermarket','pharmacy','art_gallery','movie_theater','yoga','pilates','sports_club','sporting_goods_store','nail_salon','wine_bar','juice_bar','florist','pet_store','bicycle_store']);
+var NT=new Set(['car_repair','car_wash','car_dealer','gas_station','parking','storage','moving_company','general_contractor','laundry','funeral_home','liquor_store','casino','betting','pawn_shop']);
+function cv2(types){var t=new Set(types);if([...t].some(function(x){return NT.has(x);}))return'neg';if([...t].some(function(x){return LT.has(x);}))return'pos';return'neu';}
+function vs5(pl){var t=pl.reduce(function(s,p){return s+(p.user_ratings_total||0);},0);return t>=15000?5:t>=8000?4:t>=3000?3:t>=1000?2:1;}
+function is5(pl){var ac=pl.filter(function(p){return(p.user_ratings_total||0)>0;});if(!ac.length)return 1;var pr=ac.filter(function(p){return cv2(p.types)==='pos';}).reduce(function(s,p){return s+(p.user_ratings_total||0);},0);var nr=ac.filter(function(p){return cv2(p.types)==='neg';}).reduce(function(s,p){return s+(p.user_ratings_total||0);},0);var tr=ac.reduce(function(s,p){return s+(p.user_ratings_total||0);},0);var a=(pr/Math.max(tr,1))-(nr/Math.max(tr,1))*0.5;return a>=0.65?5:a>=0.45?4:a>=0.28?3:a>=0.12?2:1;}
+
+// Signal breakdown rendering for macro score
+function renderMacroBreakdown(d){
+  var signals=[
+    {key:'professionals',label:'Professionals',desc:'Managerial/professional %',bench:66,dir:1,sfx:'%'},
+    {key:'age_30_44',label:'Age 30–44',desc:'Primary age band %',bench:40,dir:1,sfx:'%'},
+    {key:'age_16_29',label:'Age 16–29',desc:'Secondary age band %',bench:26,dir:1,sfx:'%'},
+    {key:'deprivation',label:'Deprivation',desc:'IMD score 1–10 (10=best)',bench:4,dir:1,sfx:''},
+    {key:'private_rent',label:'Private rent',desc:'Private rented tenure %',bench:39.8,dir:1,sfx:'%'},
+    {key:'social_rent',label:'Social rent',desc:'Social rented % (lower=better)',bench:4.25,dir:-1,sfx:'%'}
+  ];
+  var rows=signals.map(function(sig){
+    var v=d[sig.key];if(v==null)return'';
+    var ratio=sig.dir===1?(v/sig.bench):(sig.bench/Math.max(v,0.1));
+    var rCol=ratio>=1.0?'#2d6b0a':ratio>=0.75?'#7a4a08':'#8b2020';
+    var rBg=ratio>=1.0?'#e8f5d6':ratio>=0.75?'#fef3e2':'#fceaea';
+    return'<tr style="border-bottom:1px solid #f0ede6">'
+      +'<td style="padding:6px 8px;font-weight:600;font-size:12px">'+sig.label+'<br><span style="font-weight:400;font-size:10px;color:#888">'+sig.desc+' · bench '+sig.bench+sig.sfx+'</span></td>'
+      +'<td style="padding:6px 8px;font-size:12px;text-align:right">'+v.toFixed(1)+sig.sfx+'</td>'
+      +'<td style="padding:6px 8px;text-align:center"><span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;background:'+rBg+';color:'+rCol+'">'+ratio.toFixed(2)+'</span></td>'
+    +'</tr>';
+  }).join('');
+  return'<div style="margin-top:12px;border:1px solid #e8e7e2;border-radius:6px;overflow:hidden">'
+    +'<table style="width:100%;border-collapse:collapse">'
+    +'<thead><tr style="background:#f5f4f0"><th style="padding:5px 8px;font-size:10px;font-weight:600;letter-spacing:.05em;color:#888;text-align:left">SIGNAL</th><th style="padding:5px 8px;font-size:10px;font-weight:600;letter-spacing:.05em;color:#888;text-align:right">SITE VALUE</th><th style="padding:5px 8px;font-size:10px;font-weight:600;letter-spacing:.05em;color:#888;text-align:center">RATIO</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody></table></div>';
+}
+
+// Venue breakdown for micro score
+function renderVenueBreakdown(places){
+  if(!places||!places.length)return'';
+  var top=[...places].sort(function(a,b){return(b.user_ratings_total||0)-(a.user_ratings_total||0);}).slice(0,8);
+  var rows=top.map(function(p){
+    var cls=cv2(p.types);
+    var col=cls==='pos'?'#2d6b0a':cls==='neg'?'#8b2020':'#888';
+    var bg=cls==='pos'?'#e8f5d6':cls==='neg'?'#fceaea':'#f0ede6';
+    return'<tr style="border-bottom:1px solid #f0ede6">'
+      +'<td style="padding:5px 8px;font-size:11px;font-weight:600">'+esc(p.name||'')+'</td>'
+      +'<td style="padding:5px 8px"><span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;background:'+bg+';color:'+col+'">'+cls+'</span></td>'
+      +'<td style="padding:5px 8px;font-size:11px;color:#888;text-align:right">'+(p.user_ratings_total||0).toLocaleString()+' reviews</td>'
+      +'</tr>';
+  }).join('');
+  return'<div style="margin-top:12px;border:1px solid #e8e7e2;border-radius:6px;overflow:hidden">'
+    +'<div style="padding:5px 8px;background:#f5f4f0;font-size:10px;font-weight:600;letter-spacing:.05em;color:#888">NEARBY VENUES (TOP 8 BY REVIEWS)</div>'
+    +'<table style="width:100%;border-collapse:collapse"><tbody>'+rows+'</tbody></table></div>';
+}
+
 function gss(r){var T=[[1.10,1.00],[0.90,0.80],[0.75,0.55],[0.55,0.30],[0.00,0.05]];for(var i=0;i<T.length;i++)if(r>=T[i][0])return T[i][1];return 0.05;}
 function cmw(d){var b={professionals:66,age_30_44:40,age_16_29:26,private_rent:39.8,social_rent:4.25,deprivation:4};var w={professionals:.35,age_30_44:.15,age_16_29:.10,deprivation:.25,private_rent:.10,social_rent:.05};var W=0;['professionals','age_30_44','age_16_29','deprivation','private_rent','social_rent'].forEach(function(k){var v=d[k];if(v==null)return;W+=w[k]*gss(k!=='social_rent'?(v/b[k]):(b[k]/Math.max(v,.1)));});return W;}
 function sc5(v){return v>=4?'score-high':v>=3?'score-mid':'score-low';}
@@ -1161,8 +1214,20 @@ function svp(steps,cur,state,msg){
   }catch(e){console.error("svp error",e);}
 }function showV2Card(s){
   if(!g('v2-scoring-card'))return;
-  if(s.macro_score_v2!=null){g('v2-macro-bubble').textContent=s.macro_score_v2;g('v2-macro-bubble').className='score-bubble '+sc5(s.macro_score_v2);g('v2-macro-reasoning').textContent=s.macro_score_v2_reasoning||'';g('v2-macro-result').style.display='block';g('v2-macro-btn').textContent='Re-run macro score';}
-  if(s.micro_score_v2!=null){g('v2-micro-bubble').textContent=s.micro_score_v2;g('v2-micro-bubble').className='score-bubble '+sc5(s.micro_score_v2);g('v2-micro-reasoning').textContent=s.micro_score_v2_reasoning||'';g('v2-micro-result').style.display='block';g('v2-micro-btn').textContent='Re-run micro score';}
+  if(s.macro_score_v2!=null){
+    g('v2-macro-bubble').textContent=s.macro_score_v2;g('v2-macro-bubble').className='score-bubble '+sc5(s.macro_score_v2);
+    var mrsn='<p style="margin-bottom:4px">'+(s.macro_score_v2_reasoning||'')+'</p>';
+    if(s.macro_score_data){try{mrsn+=renderMacroBreakdown(JSON.parse(s.macro_score_data));}catch(e){}}
+    g('v2-macro-reasoning').innerHTML=mrsn;
+    g('v2-macro-result').style.display='block';g('v2-macro-btn').textContent='Re-run macro score';
+  }
+  if(s.micro_score_v2!=null){
+    g('v2-micro-bubble').textContent=s.micro_score_v2;g('v2-micro-bubble').className='score-bubble '+sc5(s.micro_score_v2);
+    var irsn='<p style="margin-bottom:4px">'+(s.micro_score_v2_reasoning||'')+'</p>';
+    if(s.micro_score_data){try{var md=JSON.parse(s.micro_score_data);if(md.places)irsn+=renderVenueBreakdown(md.places);}catch(e){}}
+    g('v2-micro-reasoning').innerHTML=irsn;
+    g('v2-micro-result').style.display='block';g('v2-micro-btn').textContent='Re-run micro score';
+  }
   if(s.macro_score_v2!=null&&s.micro_score_v2!=null){g('v2-combined-wrap').style.display='block';g('v2-combined-val').textContent=((+s.macro_score_v2+ +s.micro_score_v2)/2).toFixed(1)+'/5';}
 }
 async function runV2Macro(){
@@ -1234,7 +1299,16 @@ async function runV2Micro(){
     var ad=JSON.parse(at);var ai=Math.min(5,Math.max(1,Math.round(parseFloat(ad.score||3))));
     var vs=vs5(pl),is=is5(pl),ms=Math.min(5,Math.max(1,Math.round(vs*.30+is*.35+ai*.35)));
     svp(steps,2,'done','Score '+ms+'/5');g('v2-progress').style.display='none';
-    g('v2-micro-bubble').textContent=ms;g('v2-micro-bubble').className='score-bubble '+sc5(ms);g('v2-micro-reasoning').textContent=ad.reasoning||'';g('v2-micro-result').style.display='block';
+    g('v2-micro-bubble').textContent=ms;g('v2-micro-bubble').className='score-bubble '+sc5(ms);
+    var microReasoning='<p style="margin-bottom:4px">'+(ad.reasoning||'')+'</p>'
+      +'<div style="display:flex;gap:8px;margin:8px 0;flex-wrap:wrap">'
+      +'<div style="flex:1;min-width:80px;background:#f5f4f0;border-radius:5px;padding:8px 10px"><div style="font-size:10px;color:#888;font-weight:600;letter-spacing:.04em">VOLUME</div><div style="font-size:20px;font-weight:700;color:#3B6D11">'+vs5(pl)+'<span style="font-size:11px;opacity:.5">/5</span></div><div style="font-size:10px;color:#888">'+tr.toLocaleString()+' reviews</div></div>'
+      +'<div style="flex:1;min-width:80px;background:#f5f4f0;border-radius:5px;padding:8px 10px"><div style="font-size:10px;color:#888;font-weight:600;letter-spacing:.04em">INTENT</div><div style="font-size:20px;font-weight:700;color:#3B6D11">'+is5(pl)+'<span style="font-size:11px;opacity:.5">/5</span></div><div style="font-size:10px;color:#888">'+pl.filter(function(p){return cv2(p.types)==='pos';}).length+' positive venues</div></div>'
+      +'<div style="flex:1;min-width:80px;background:#f5f4f0;border-radius:5px;padding:8px 10px"><div style="font-size:10px;color:#888;font-weight:600;letter-spacing:.04em">CHARACTER</div><div style="font-size:20px;font-weight:700;color:#3B6D11">'+ai+'<span style="font-size:11px;opacity:.5">/5</span></div><div style="font-size:10px;color:#888">Claude assessment</div></div>'
+      +'</div>'
+      +renderVenueBreakdown(pl);
+    g('v2-micro-reasoning').innerHTML=microReasoning;
+    g('v2-micro-result').style.display='block';
     await patchSite(curId,{micro_score_v2:ms,micro_score_v2_reasoning:ad.reasoning||'',micro_score_data:'{}',lat:lat,lng:lng});
     var s2=sites.find(function(x){return x.id===curId;});if(s2&&s2.macro_score_v2!=null){g('v2-combined-wrap').style.display='block';g('v2-combined-val').textContent=((+s2.macro_score_v2+ms)/2).toFixed(1)+'/5';}
   }catch(e){svp(steps,0,'err',e.message);}

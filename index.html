@@ -298,8 +298,8 @@ textarea:focus{border-color:#3B6D11;}
         <div class="divider"></div>
         <div class="sec-lbl">Agent</div>
         <div class="dgrid">
-          <div><div class="df-lbl">Name</div><div class="df-val" id="dv-agent"></div></div>
-          <div><div class="df-lbl">Agency</div><div class="df-val" id="dv-agency"></div></div>
+          <div><div class="df-lbl">Agent name</div><input class="df-edit" id="dv-agent-in" placeholder="—"></div>
+          <div><div class="df-lbl">Agency</div><input class="df-edit" id="dv-agency-in" placeholder="—"></div>
           <div><div class="df-lbl">Submitted</div><div class="df-val" id="dv-date"></div></div>
         </div>
       <!-- V2 Scoring -->
@@ -772,7 +772,7 @@ function openDetail(id){setTimeout(function(){var sx=sites.find(function(x){retu
   g('dv-bays-in2').value=s.expected_bays||'';
   g('dv-tot').textContent=(s.rent&&s.service_charge!=null&&s.sqft)?fT(s.rent,s.service_charge,s.sqft):'—';
   g('prop-ok').style.display='none';
-  g('dv-agent').textContent=s.agent_name||'—';g('dv-agency').textContent=s.agency_name||'—';
+  g('dv-agent-in').value=s.agent_name||'';g('dv-agency-in').value=s.agency_name||'';
   g('dv-date').textContent=fD(s.submitted_at);
   // All sections always visible - no stage gating
   ['sec-s0','sec-s1','sec-s2','sec-s3','sec-s4'].forEach(function(id){if(g(id))g(id).style.display='block';});
@@ -1252,7 +1252,9 @@ function savePropFields(){
     rent:g('dv-rent-in').value||null,
     service_charge:g('dv-sc-in').value!==''?parseFloat(g('dv-sc-in').value):null,
     ceiling_ok:g('dv-ceil-in').value==='true',
-    expected_bays:g('dv-bays-in2').value||null
+    expected_bays:g('dv-bays-in2').value||null,
+    agent_name:g('dv-agent-in').value.trim()||null,
+    agency_name:g('dv-agency-in').value.trim()||null
   };
   if(patch.address)g('dv-title').textContent=addr.split(',')[0];
   var tot=g('dv-tot');

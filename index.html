@@ -37,6 +37,54 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ftab{padding:6px 14px;font-size:12px;font-weight:500;border:1px solid #ddd;border-radius:100px;cursor:pointer;background:transparent;color:#666;font-family:inherit;}
 .ftab:hover{background:#f5f5f2;}
 .ftab.on{background:#1a1a1a;color:#fff;border-color:#1a1a1a;}
+/* TABLE LIST */
+#cards-wrap{overflow:auto;flex:1;}
+#cards-table{width:100%;border-collapse:collapse;}
+#cards-table thead tr{background:#fff;border-bottom:1.5px solid #d0cfc9;position:sticky;top:0;z-index:2;}
+#cards-table th{padding:6px 10px;text-align:left;font-size:10px;font-weight:600;color:#9b9a95;letter-spacing:.05em;white-space:nowrap;user-select:none;}
+#cards-table tbody tr{border-bottom:1px solid #e8e7e2;cursor:pointer;transition:background .1s;}
+#cards-table tbody tr:hover{background:#fafaf8;}
+#cards-table tbody tr.active-row{background:#eef5fb;}
+#cards-table td{padding:7px 10px;vertical-align:middle;font-size:12px;}
+.td-addr .a1{font-weight:600;color:#1a1a18;font-size:12px;}
+.td-addr .a2{font-size:10px;color:#9b9a95;margin-top:1px;}
+.sc-chip{display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;min-width:28px;height:20px;border-radius:4px;padding:0 5px;}
+.sc-hi{background:#e8f5d6;color:#2d5a0a;}
+.sc-mid{background:#fef3e2;color:#7a4a08;}
+.sc-lo{background:#fceaea;color:#8b2020;}
+.sc-none{background:#f0efe9;color:#9b9a95;font-size:10px;}
+.action-input{border:none;background:transparent;font-size:12px;color:#1a1a18;width:100%;min-width:160px;padding:2px 4px;border-radius:4px;outline:none;font-family:inherit;}
+.action-input:focus{background:#fff;box-shadow:0 0 0 1.5px #639922;}
+.action-input::placeholder{color:#c0bfba;}
+.stage-pip{font-size:10px;padding:2px 7px;border-radius:4px;font-weight:600;white-space:nowrap;}
+.pip-p0{background:#f0efe9;color:#6b6a65;}
+.pip-s1{background:#e6f1fb;color:#185FA5;}
+.pip-s2{background:#fef3e2;color:#854F0B;}
+.pip-s3{background:#f0f7e8;color:#3B6D11;}
+.pip-s4{background:#3B6D11;color:#fff;}
+.pip-rej{background:#fdf0ee;color:#A32D2D;}
+.new-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#639922;margin-left:4px;vertical-align:middle;}
+#app{display:block;}
+.topbar{background:#fff;border-bottom:1px solid #e8e8e3;padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:5;}
+.topbar-logo{font-size:13px;font-weight:700;letter-spacing:.08em;color:#3B6D11;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.ghost-btn{padding:6px 14px;font-size:12px;font-weight:500;border:1px solid #ddd;border-radius:8px;cursor:pointer;background:transparent;color:#333;font-family:inherit;}
+.ghost-btn:hover{background:#f5f5f2;}
+.logout-btn{font-size:12px;color:#999;cursor:pointer;background:none;border:none;font-family:inherit;}
+.logout-btn:hover{color:#333;}
+.main{max-width:980px;margin:0 auto;padding:2rem 1rem;}
+.pipeline{display:flex;align-items:stretch;margin-bottom:1.5rem;background:#fff;border:1px solid #e8e8e3;border-radius:12px;overflow:hidden;}
+.pipe-stage{flex:1;padding:1rem 1.25rem;border-right:1px solid #e8e8e3;}
+.pipe-stage:last-child{border-right:none;}
+.pipe-lbl{font-size:11px;font-weight:600;letter-spacing:.05em;color:#aaa;text-transform:uppercase;margin-bottom:3px;}
+.pipe-name{font-size:12px;color:#666;margin-bottom:8px;}
+.pipe-n{font-size:28px;font-weight:700;}
+.pipe-rej{background:#fdf0ee;}
+.pipe-rej .pipe-lbl{color:#c0392b;}
+.filters{display:flex;gap:6px;margin-bottom:1.25rem;flex-wrap:wrap;}
+.ftab{padding:6px 14px;font-size:12px;font-weight:500;border:1px solid #ddd;border-radius:100px;cursor:pointer;background:transparent;color:#666;font-family:inherit;}
+.ftab:hover{background:#f5f5f2;}
+.ftab.on{background:#1a1a1a;color:#fff;border-color:#1a1a1a;}
 .scard{background:#fff;border:1px solid #e8e8e3;border-radius:10px;padding:1rem 1.25rem;margin-bottom:10px;cursor:pointer;transition:border-color .12s;}
 .scard:hover{border-color:#aaa;}
 .scard-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
@@ -199,7 +247,7 @@ textarea:focus{border-color:#3B6D11;}
         <button class="ftab" data-f="s4">Stage 4</button>
         <button class="ftab" data-f="rejected">Rejected</button>
       </div>
-      <div id="cards"></div>
+      <div id="cards-wrap"><table id="cards-table"><thead><tr><th>Address</th><th>Stage</th><th>Scores</th><th>Bays</th><th>Agent</th><th>Action</th><th>Added</th></tr></thead><tbody id="cards"></tbody></table></div>
     </div>
 
     <div id="detail-view" style="display:none;">
@@ -575,6 +623,19 @@ function renderStats(){
   [0,1,2,3,4].forEach(function(n){g('ps-'+n).textContent=ac.filter(function(s){return siteStage(s)===n;}).length;});
   g('ps-rej').textContent=sites.filter(function(s){return isRej(s);}).length;
 }
+function stagePip(s){
+  if(isRej(s))return'<span class="stage-pip pip-rej">Rejected</span>';
+  var st=siteStage(s);
+  var labels=['Prospecting','Stage 1: Floor plan','Stage 2: Location','Stage 3: Viewing','Stage 4: Offer'];
+  var cls=['pip-p0','pip-s1','pip-s2','pip-s3','pip-s4'];
+  return'<span class="stage-pip '+cls[st]+'">'+labels[st]+'</span>';
+}
+function scoreChip(val,denom){
+  if(val==null)return'<span class="sc-chip sc-none">—</span>';
+  var n=parseFloat(val);
+  var cls=n>=(denom*0.7)?'sc-hi':n>=(denom*0.5)?'sc-mid':'sc-lo';
+  return'<span class="sc-chip '+cls+'">'+n.toFixed(1)+'</span>';
+}
 function renderList(){
   var f;
   if(filterMode==='all')f=sites.filter(function(s){return!isRej(s);});
@@ -585,22 +646,55 @@ function renderList(){
   else if(filterMode==='s4')f=sites.filter(function(s){return!isRej(s)&&siteStage(s)===4;});
   else f=sites.filter(function(s){return isRej(s);});
   var c=g('cards');
-  if(!f.length){c.innerHTML='<div class="empty">No sites here yet.</div>';return;}
+  if(!f.length){c.innerHTML='<tr><td colspan="7" style="padding:20px;text-align:center;color:#9b9a95">No sites here yet.</td></tr>';return;}
   c.innerHTML=f.map(function(s){
     var isNew=!seenIds.has(String(s.id));
-    var bd=stageBadge(s);
-    var b=blended(s);
-    var tags='<span class="badge '+bd.cls+'">'+bd.lbl+'</span>';
-    if(s.expected_bays)tags+=' <span class="badge bdg-info">'+s.expected_bays+' bays</span>';
-    if(b)tags+=' <span class="badge bdg-info">Score: '+b.score+'/4</span>';
-    if(isNew)tags+=' <span class="new-dot" title="Newly added"></span>';
-    var metaParts=[s.agent_name,s.agency_name,fD(s.submitted_at)];
-    if(s.sqft)metaParts.push(Number(s.sqft).toLocaleString()+' sq ft');
-    if(s.rent)metaParts.push(fR(s.rent));
-    if(isRej(s)&&s.rejection_reason){var rp=s.rejection_reason.split('|');if(rp[0])metaParts.push(rp[0]);}
-    return '<div class="scard" data-id="'+s.id+'"><div class="scard-head"><div class="scard-addr">'+esc(s.address)+'</div><div class="scard-badges">'+tags+'</div></div><div class="scard-meta">'+metaParts.filter(Boolean).join(' \u00b7 ')+'</div></div>';
+    var combined=null;
+    if(s.macro_score_v2!=null&&s.micro_score_v2!=null)combined=((+s.macro_score_v2+ +s.micro_score_v2)/2).toFixed(1);
+    else if(s.macro_score_v2!=null)combined=s.macro_score_v2;
+    else if(s.micro_score_v2!=null)combined=s.micro_score_v2;
+    var scoreHtml='<div style="display:flex;gap:4px;align-items:center">';
+    if(s.macro_score_v2!=null)scoreHtml+='<span style="font-size:9px;color:#9b9a95">M</span>'+scoreChip(s.macro_score_v2,5);
+    if(s.micro_score_v2!=null)scoreHtml+='<span style="font-size:9px;color:#9b9a95">m</span>'+scoreChip(s.micro_score_v2,5);
+    if(!s.macro_score_v2&&!s.micro_score_v2)scoreHtml+=scoreChip(null,5);
+    scoreHtml+='</div>';
+    var addrShort=esc(s.address.split(',')[0]);
+    var addrFull=esc(s.address);
+    var agent=[s.agent_name,s.agency_name].filter(Boolean).join(' · ')||'—';
+    var action=esc(s.next_action||'');
+    return'<tr data-id="'+s.id+'">'
+      +'<td class="td-addr"><div class="a1">'+addrShort+(isNew?'<span class="new-dot"></span>':'')+' </div><div class="a2">'+addrFull+'</div></td>'
+      +'<td>'+stagePip(s)+'</td>'
+      +'<td>'+scoreHtml+'</td>'
+      +'<td style="color:#6b6a65">'+(s.expected_bays||'—')+'</td>'
+      +'<td style="color:#6b6a65;font-size:11px">'+agent+'</td>'
+      +'<td><input class="action-input" data-id="'+s.id+'" placeholder="Next action…" value="'+action+'"></td>'
+      +'<td style="color:#9b9a95;font-size:11px;white-space:nowrap">'+fD(s.submitted_at)+'</td>'
+      +'</tr>';
   }).join('');
-  c.querySelectorAll('.scard').forEach(function(card){card.addEventListener('click',function(){openDetail(card.dataset.id);});});
+  // Click row to open detail
+  c.querySelectorAll('tr[data-id]').forEach(function(row){
+    row.addEventListener('click',function(e){
+      if(e.target.classList.contains('action-input'))return;
+      openDetail(row.dataset.id);
+    });
+  });
+  // Action input save on blur/enter
+  c.querySelectorAll('.action-input').forEach(function(inp){
+    var sid=inp.dataset.id;
+    function save(){
+      var val=inp.value.trim();
+      var s=sites.find(function(x){return x.id===sid;});
+      if(s&&val!==((s.next_action)||'')){
+        patchSite(sid,{next_action:val});
+        if(s)s.next_action=val;
+      }
+    }
+    inp.addEventListener('blur',save);
+    inp.addEventListener('keydown',function(e){if(e.key==='Enter'){inp.blur();}});
+  });
+  // Highlight active row
+  if(curId){var ar=c.querySelector('tr[data-id="'+curId+'"]');if(ar)ar.classList.add('active-row');}
 }
 document.querySelectorAll('.ftab').forEach(function(t){t.addEventListener('click',function(){document.querySelectorAll('.ftab').forEach(function(x){x.classList.remove('on');});this.classList.add('on');filterMode=this.dataset.f;renderList();});});
 g('btn-refresh').addEventListener('click',loadSites);

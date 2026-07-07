@@ -1290,6 +1290,7 @@ async function runV2Micro(){
     svp(steps,1,'run','');
     var pr2=await fetch('https://places.googleapis.com/v1/places:searchNearby',{method:'POST',headers:{'Content-Type':'application/json','X-Goog-Api-Key':GK,'X-Goog-FieldMask':'places.displayName,places.types,places.rating,places.userRatingCount'},body:JSON.stringify({locationRestriction:{circle:{center:{latitude:lat,longitude:lng},radius:400.0}},maxResultCount:20})});
     var pd=await pr2.json();var pl=(pd.places||[]).map(function(p){return{name:(p.displayName||{}).text||'',types:p.types||['establishment'],user_ratings_total:p.userRatingCount||0};});
+    var totalRev=pl.reduce(function(s,p){return s+(p.user_ratings_total||0);},0);
     svp(steps,2,'run','');
     var pv=pl.filter(function(p){return cv2(p.types)==='pos';}).sort(function(a,b){return(b.user_ratings_total||0)-(a.user_ratings_total||0);}).slice(0,8).map(function(p){return p.name+' ('+(p.user_ratings_total||0)+')';});
     var nv=pl.filter(function(p){return cv2(p.types)==='neg';}).map(function(p){return p.name;});

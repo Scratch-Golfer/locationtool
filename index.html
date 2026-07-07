@@ -310,31 +310,35 @@ textarea:focus{border-color:#3B6D11;}
         </div>
       <!-- V2 Scoring -->
       <div class="dv-card" id="v2-scoring-card">
-        <div class="sec-lbl">Location scores</div>
-        <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-          <button class="ai-btn" id="v2-macro-btn" onclick="runV2Macro()">Run macro score</button>
-          <button class="ai-btn" id="v2-micro-btn" onclick="runV2Micro()">Run micro score</button>
-        </div>
-        <div id="v2-progress" style="display:none;margin-bottom:10px"></div>
-        <div id="v2-macro-result" style="display:none;margin-bottom:12px">
-          <div class="score-display">
-            <div class="score-bubble score-high" id="v2-macro-bubble">-</div>
-            <div><div style="font-size:13px;font-weight:600">Macro score</div>
-            <div style="font-size:11px;color:#888">Benchmarked vs Balham + Wandsworth · 1-5</div></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <div class="sec-lbl" style="margin:0">Location scores</div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <div id="v2-combined-wrap" style="display:none">
+              <span style="font-size:11px;color:#888">Combined </span><span style="font-size:24px;font-weight:700;color:#3B6D11" id="v2-combined-val">-</span><span style="font-size:11px;color:#aaa">/5 (60% mac&#xb7;40% mic)</span>
+            </div>
+            <button class="ai-btn" id="v2-macro-btn" onclick="runV2Macro()">Run macro score</button>
+            <button class="ai-btn" id="v2-micro-btn" onclick="runV2Micro()">Run micro score</button>
           </div>
-          <div class="score-reasoning" id="v2-macro-reasoning" style="margin-top:8px"></div>
         </div>
-        <div id="v2-micro-result" style="display:none;margin-bottom:12px">
-          <div class="score-display">
-            <div class="score-bubble score-high" id="v2-micro-bubble">-</div>
-            <div><div style="font-size:13px;font-weight:600">Micro score</div>
-            <div style="font-size:11px;color:#888">Google Places 400m · Claude · 1-5</div></div>
+        <div id="v2-progress" style="display:none;margin-bottom:12px"></div>
+        <div id="v2-macro-result" style="display:none;margin-bottom:24px">
+          <div style="display:flex;align-items:center;gap:14px;padding-bottom:12px;margin-bottom:14px;border-bottom:2px solid #f0ede6">
+            <div class="score-bubble score-high" id="v2-macro-bubble" style="width:54px;height:54px;font-size:22px;flex-shrink:0">-</div>
+            <div><div style="font-size:15px;font-weight:700">Macro score</div><div style="font-size:11px;color:#888">Demographic catchment quality &#xb7; benchmarked vs Balham + Wandsworth &#xb7; 1-5</div></div>
           </div>
-          <div class="score-reasoning" id="v2-micro-reasoning" style="margin-top:8px"></div>
+          <div style="background:#f8f7f3;border-radius:6px;padding:12px 14px;font-size:13px;color:#444;line-height:1.7;margin-bottom:12px" id="v2-macro-summary"></div>
+          <div style="background:#f0f7e8;border:1px solid #c8e6a0;border-radius:6px;padding:10px 14px;font-size:11px;color:#2d5a0a;line-height:1.6;margin-bottom:14px"><strong>Benchmarks from Balham + Wandsworth.</strong> Ratio 1.00 = matches live sites. Professionals (35%) and Deprivation (25%) carry most weight.</div>
+          <div id="v2-macro-signals"></div>
         </div>
-        <div id="v2-combined-wrap" style="display:none">
-          <div style="font-size:11px;color:#888;margin-bottom:2px">Combined score</div>
-          <div style="font-size:28px;font-weight:700;color:#3B6D11" id="v2-combined-val">-</div>
+        <div id="v2-micro-result" style="display:none">
+          <div style="display:flex;align-items:center;gap:14px;padding-bottom:12px;margin-bottom:14px;border-bottom:2px solid #f0ede6">
+            <div class="score-bubble score-high" id="v2-micro-bubble" style="width:54px;height:54px;font-size:22px;flex-shrink:0">-</div>
+            <div><div style="font-size:15px;font-weight:700">Micro score</div><div style="font-size:11px;color:#888">Street footfall + walk-past potential &#xb7; 100m radius &#xb7; 1-5</div></div>
+          </div>
+          <div id="v2-micro-components" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap"></div>
+          <div style="background:#f8f7f3;border-radius:6px;padding:12px 14px;font-size:13px;color:#444;line-height:1.7;margin-bottom:12px" id="v2-micro-summary"></div>
+          <div id="v2-street-businesses"></div>
+          <div id="v2-micro-venues"></div>
         </div>
       </div>
 
@@ -1538,6 +1542,69 @@ function savePropFields(){
   renderList();
 }
 
+
+var SIGNALS_DEF=[
+  {key:'professionals',label:'Professionals',desc:'% managerial/professional — core member profile',bench:66,sfx:'%',weight:'35%'},
+  {key:'age_30_44',label:'Age 30-44',desc:'Primary target age band',bench:40,sfx:'%',weight:'15%'},
+  {key:'age_16_29',label:'Age 16-29',desc:'Secondary age band — younger professionals',bench:26,sfx:'%',weight:'10%'},
+  {key:'deprivation',label:'Deprivation',desc:'IMD /10 (10=least deprived)',bench:4,sfx:'',weight:'25%'},
+  {key:'private_rent',label:'Private rent',desc:'% private rented — mobile professional proxy',bench:39.8,sfx:'%',weight:'10%'},
+  {key:'social_rent',label:'Social rent',desc:'% social rented — lower=better',bench:4.25,sfx:'%',weight:'5%',invert:true},
+];
+function renderSignalTable(d){
+  if(!d||!Object.keys(d).length)return'';
+  var rows=SIGNALS_DEF.map(function(sig){
+    var v=d[sig.key];if(v==null)return'';
+    var ratio=sig.invert?(sig.bench/Math.max(v,0.1)):(v/sig.bench);
+    var rc=ratio>=1.0?'#2d6b0a':ratio>=0.75?'#854F0B':'#8b2020';
+    var rb=ratio>=1.0?'#e8f5d6':ratio>=0.75?'#fef3e2':'#fceaea';
+    var interp;
+    if(sig.invert){interp=v<=sig.bench*0.8?'Good':v<=sig.bench*1.5?'Caution':'Weak';}
+    else{interp=ratio>=1.0?'Meets benchmark':ratio>=0.75?'Within 25% of benchmark':'Below benchmark';}
+    var barPct=Math.min(ratio/1.5,1)*100;
+    var barCol=ratio>=1.0?'#5CB81F':ratio>=0.75?'#E8A020':'#E05030';
+    return'<tr style="border-bottom:1px solid #f0ede6">'
+      +'<td style="padding:9px 10px"><div style="font-weight:600;font-size:12px">'+sig.label+' <span style="font-weight:400;font-size:10px;color:#aaa">'+sig.weight+'</span></div><div style="font-size:10px;color:#888;margin-top:1px">'+sig.desc+'</div><div style="font-size:10px;color:#555;font-style:italic;margin-top:2px">'+interp+'</div></td>'
+      +'<td style="padding:9px 10px;text-align:right;white-space:nowrap"><div style="font-size:16px;font-weight:700">'+v.toFixed(1)+sig.sfx+'</div><div style="font-size:10px;color:#888">bench '+sig.bench+sig.sfx+'</div></td>'
+      +'<td style="padding:9px 10px;text-align:center"><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:'+rb+';color:'+rc+'">'+ratio.toFixed(2)+'x</span></td>'
+      +'<td style="padding:9px 14px;min-width:90px"><div style="height:6px;border-radius:3px;background:#eae9e4;overflow:hidden"><div style="height:100%;width:'+barPct.toFixed(0)+'%;background:'+barCol+';border-radius:3px"></div></div></td>'
+    +'</tr>';
+  }).join('');
+  return'<div style="border:1px solid #e8e7e2;border-radius:6px;overflow:hidden"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f5f4f0"><th style="padding:6px 10px;font-size:10px;font-weight:600;color:#888;text-align:left">SIGNAL</th><th style="padding:6px 10px;font-size:10px;font-weight:600;color:#888;text-align:right">VALUE</th><th style="padding:6px 10px;font-size:10px;font-weight:600;color:#888;text-align:center">RATIO</th><th style="padding:6px 10px;font-size:10px;font-weight:600;color:#888">STRENGTH</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+function renderMicroComponents(md){
+  if(!md)return'';
+  var comps=[{label:'Volume',val:md.vol_score,sub:(md.total_reviews||0).toLocaleString()+' reviews 100m',wt:'30%'},{label:'Intent',val:md.intent_score,sub:(md.pos_count||0)+' positive venues',wt:'35%'},{label:'Character',val:md.ai_score,sub:'Claude assessment',wt:'35%'}];
+  return comps.map(function(c){var col=c.val>=4?'#3B6D11':c.val>=3?'#854F0B':'#8b2020';var bg=c.val>=4?'#f0f7e8':c.val>=3?'#fef3e2':'#fceaea';return'<div style="flex:1;min-width:100px;background:'+bg+';border-radius:8px;padding:12px 14px;text-align:center"><div style="font-size:10px;font-weight:700;color:#888;letter-spacing:.06em;margin-bottom:4px">'+c.label.toUpperCase()+' <span style="font-weight:400">'+c.wt+'</span></div><div style="font-size:26px;font-weight:700;color:'+col+';line-height:1">'+c.val+'</div><div style="font-size:10px;color:#888;margin-top:3px">'+c.sub+'</div></div>';}).join('');
+}
+function renderVenueTable(places){
+  if(!places||!places.length)return'';
+  var sorted=[].concat(places).sort(function(a,b){return(b.user_ratings_total||0)-(a.user_ratings_total||0);});
+  var rows=sorted.map(function(p){var cls=cv2(p.types);var cc=cls==='pos'?'#2d6b0a':cls==='neg'?'#8b2020':'#888';var cb=cls==='pos'?'#e8f5d6':cls==='neg'?'#fceaea':'#f0ede6';return'<tr style="border-bottom:1px solid #f0ede6"><td style="padding:7px 10px;font-weight:600;font-size:12px">'+esc(p.name||'')+'</td><td style="padding:7px 10px;text-align:right;font-size:11px;color:#888">'+(p.user_ratings_total||0).toLocaleString()+'</td><td style="padding:7px 10px;text-align:center"><span style="display:inline-block;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:700;background:'+cb+';color:'+cc+'">'+cls.toUpperCase()+'</span></td></tr>';}).join('');
+  return'<div style="margin-top:12px;border:1px solid #e8e7e2;border-radius:6px;overflow:hidden"><div style="padding:6px 10px;background:#f5f4f0;font-size:10px;font-weight:600;color:#888;letter-spacing:.05em">NEARBY VENUES - 100M RADIUS</div><table style="width:100%;border-collapse:collapse"><thead><tr style="border-bottom:1px solid #e8e7e2"><th style="padding:5px 10px;font-size:10px;color:#888;text-align:left;background:#f5f4f0">VENUE</th><th style="padding:5px 10px;font-size:10px;color:#888;text-align:right;background:#f5f4f0">REVIEWS</th><th style="padding:5px 10px;font-size:10px;color:#888;text-align:center;background:#f5f4f0">SIGNAL</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+function showV2Card(s){
+  if(!g('v2-scoring-card'))return;
+  if(s.macro_score_v2!=null){
+    g('v2-macro-bubble').textContent=s.macro_score_v2;g('v2-macro-bubble').className='score-bubble '+sc5(s.macro_score_v2);
+    g('v2-macro-summary').textContent=s.macro_score_v2_reasoning||'';
+    var md={};try{md=JSON.parse(s.macro_score_data||'{}');}catch(e){}
+    g('v2-macro-signals').innerHTML=renderSignalTable(md);
+    g('v2-macro-result').style.display='block';g('v2-macro-btn').textContent='Re-run macro score';
+  }
+  if(s.micro_score_v2!=null){
+    g('v2-micro-bubble').textContent=s.micro_score_v2;g('v2-micro-bubble').className='score-bubble '+sc5(s.micro_score_v2);
+    g('v2-micro-summary').textContent=s.micro_score_v2_reasoning||'';
+    var micd={};try{micd=JSON.parse(s.micro_score_data||'{}');}catch(e){}
+    g('v2-micro-components').innerHTML=renderMicroComponents(micd);
+    if(micd.places)g('v2-micro-venues').innerHTML=renderVenueTable(micd.places);
+    g('v2-micro-result').style.display='block';g('v2-micro-btn').textContent='Re-run micro score';
+  }
+  if(s.macro_score_v2!=null&&s.micro_score_v2!=null){
+    g('v2-combined-wrap').style.display='block';
+    g('v2-combined-val').textContent=(+s.macro_score_v2*0.6+ +s.micro_score_v2*0.4).toFixed(1);
+  }
+}
 </script>
 </body>
 </html>

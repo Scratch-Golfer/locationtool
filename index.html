@@ -1025,7 +1025,7 @@ async function runV2Macro(){
   var steps=['Fetching demographics','Fetching deprivation','Computing score'];svp(steps,0,'run','');
   try{
     var ep=encodeURIComponent(pc);
-    var[dr,pr]=await Promise.all([fetch('https://api.homedata.co.uk/api/demographics/?postcode='+ep,{headers:{'Authorization':'Api-Key '+HK}}),fetch('https://api.homedata.co.uk/api/deprivation/?postcode='+ep,{headers:{'Authorization':'Api-Key '+HK}})]);
+    var[dr,pr]=await Promise.all([fetch('https://api.homedata.co.uk/api/demographics/?postcode='+ep+'&api_key='+HK),fetch('https://api.homedata.co.uk/api/deprivation/?postcode='+ep+'&api_key='+HK)]);
     var dem=await dr.json();var dep=await pr.json();
     if(dem.error)throw new Error(dem.error.message||'Postcode not found');
     svp(steps,2,'run','');

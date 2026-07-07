@@ -1003,7 +1003,7 @@ var WV={professionals:.35,age_30_44:.15,age_16_29:.10,deprivation:.25,private_re
 var TV=[[1.10,1.00],[0.90,0.80],[0.75,0.55],[0.55,0.30],[0.00,0.05]];
 function xpc(a){var m=(a||'').toUpperCase().match(/([A-Z]{1,2}\d{1,2}[A-Z]?)\s*(\d[A-Z]{2})/);return m?m[1]+' '+m[2]:null;}
 function gss(r){for(var i=0;i<TV.length;i++)if(r>=TV[i][0])return TV[i][1];return.05;}
-function cmw(d){var W=0;Object.keys(WV).forEach(function(k){var v=d[k];if(v==null)return;W+=WV[k]*gss(k!=='social_rent'?(v/BV[k]):(BV[k]/Math.max(v,.1)));}); return W;}
+function cmw(d){var b={professionals:66,age_30_44:40,age_16_29:26,private_rent:39.8,social_rent:4.25,deprivation:4};var w={professionals:.35,age_30_44:.15,age_16_29:.10,deprivation:.25,private_rent:.10,social_rent:.05};var W=0;['professionals','age_30_44','age_16_29','deprivation','private_rent','social_rent'].forEach(function(k){var v=d[k];if(v==null)return;W+=w[k]*gss(k!=='social_rent'?(v/b[k]):(b[k]/Math.max(v,.1)));});return W;}
 function sc5(v){return v>=4?'score-high':v>=3?'score-mid':'score-low';}
 function svp(steps,cur,state,msg){
   var el=g('v2-progress');if(!el)return;el.style.display='block';

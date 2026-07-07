@@ -302,27 +302,65 @@ function isFullPostcode(pc){
   return pc&&/^[A-Z]{1,2}\d{1,2}[A-Z]?\s\d[A-Z]{2}$/i.test(pc.trim());
 }
 
+var GK='AIzaSyD7t9mpKJpMACotkzGWJ3kTsjX_81R-E-g';
+var HK='EyVRzn5O.UePfMTpM7rldFJL55Do9PeyzrEE1METa';
+var BENCH={professionals:66,age_30_44:40,age_16_29:26,private_rent:39.8,social_rent:4.25,deprivation:4};
+var WEIGHTS={professionals:.35,age_30_44:.15,age_16_29:.10,deprivation:.25,private_rent:.10,social_rent:.05};
+var THR=[[1.10,1.00],[0.90,0.80],[0.75,0.55],[0.55,0.30],[0.00,0.05]];
+function gss(r){for(var i=0;i<THR.length;i++)if(r>=THR[i][0])return THR[i][1];return 0.05;}
+function cmw(d){var W=0;Object.keys(WEIGHTS).forEach(function(k){var v=d[k];if(v==null)return;var b=BENCH[k];W+=WEIGHTS[k]*gss(k!=='social_rent'?(v/b):(b/Math.max(v,0.1)));});return W;}
+
 async function scoreOne(l){
-  // Skip district-only postcodes — too imprecise for meaningful scoring
-  if(!isFullPostcode(l.postcode)){
-    l.macro_reasoning='Full postcode needed to score ('+l.postcode+' is too broad)';
-    l.micro_reasoning='Full postcode needed to score ('+l.postcode+' is too broad)';
-    return false;
+  // Step 1: get postcode via geocoding if missing
+  var pc=l.postcode;
+  if(!pc||pc.length<5){
+    try{
+      var geoR=await fetch('https://maps.googleapis.com/maps/api/geocode/json?address='+encodeURIComponent((l.addr||'')+(l.area?', '+l.area:'')+', London, UK')+'&region=gb&key='+GK);
+      var geoD=await geoR.json();
+      if(geoD.status==='OK'&&geoD.results.length){
+        geoD.results[0].address_components.forEach(function(c){if(c.types.includes('postal_code'))pc=c.long_name;});
+        if(!l.lat){l.lat=geoD.results[0].geometry.location.lat;l.lng=geoD.results[0].geometry.location.lng;}
+      }
+    }catch(e){}
   }
-  if(!l.lat||!l.lng){
-    var coords=await geocode(l.postcode);
-    if(coords){l.lat=coords.lat;l.lng=coords.lng;}
-    else return false;
+  if(!pc||pc.length<5){l.macro_reasoning='Could not determine postcode';return false;}
+  l.postcode=pc;
+
+  // Step 2: Homedata macro score
+  var ep=encodeURIComponent(pc);
+  var[dr,pr]=await Promise.all([
+    fetch('https://api.homedata.co.uk/api/demographics/?postcode='+ep,{headers:{'Authorization':'Api-Key '+HK}}),
+    fetch('https://api.homedata.co.uk/api/deprivation/?postcode='+ep,{headers:{'Authorization':'Api-Key '+HK}})
+  ]);
+  var dem=await dr.json();var dep=await pr.json();
+  if(dem.error){l.macro_reasoning='Postcode not found in Homedata';return false;}
+
+  var d={
+    professionals:parseFloat((dem.occupation||{}).managerial_professional_pct||0),
+    age_30_44:parseFloat((dem.age||{}).age_30_44_pct||0),
+    age_16_29:parseFloat((dem.age||{}).age_16_29_pct||0),
+    private_rent:parseFloat((dem.tenure||{}).private_rented_pct||0),
+    social_rent:parseFloat((dem.tenure||{}).social_rented_pct||0),
+    deprivation:parseFloat(((dep.overall)||{}).score||4)
+  };
+  var W=cmw(d);
+  var macroScore=Math.min(5,Math.max(1,Math.round(1+W*4)));
+  var rsn='Professionals '+d.professionals.toFixed(0)+'% ('+(d.professionals>=59?'above':'below')+' 66% bench). Age 25-44: '+(d.age_30_44+d.age_16_29).toFixed(0)+'%. Social rent: '+d.social_rent.toFixed(1)+'%.';
+
+  l.macro=macroScore;
+  l.macro_reasoning=rsn;
+  l.macro_data=JSON.stringify(d);
+  l.combined=macroScore; // combined = macro only until micro run
+
+  // Step 3: save back to listings table
+  if(l._dbId){
+    await db.from('listings').update({
+      macro_score_v2:macroScore,
+      macro_score_v2_reasoning:rsn,
+      macro_score_data:JSON.stringify(d),
+      submitted_at:l.submitted_at||new Date().toISOString()
+    }).eq('id',l._dbId);
   }
-  var macroPrompt='Score this UK location for a membership-based indoor golf simulator. Target: 25-40 year olds with disposable income. Coordinates: '+l.lat+','+l.lng+'. Score 1-4 on residential concentration of target demographic within 15-min walk: 1=wrong demographic, 2=sparse professionals, 3=moderate (e.g. Wimbledon/Chiswick), 4=strong concentration (e.g. Clapham/Fulham/Islington/Balham/Hackney/Battersea). Reply ONLY with valid JSON: {"score":3,"reasoning":"2-3 sentences"}';
-  var microPrompt='Score this specific UK site for a membership-based indoor golf simulator. Address: '+l.addr+', '+l.area+'. Coords: '+l.lat+','+l.lng+'. Score 1-4: 1=poor street/hard to find/unsafe at night, 2=side street/low traffic/limited visibility, 3=just off a high street/findable/safe, 4=on a high street or prominent road/high visibility/safe at night. Reply ONLY with valid JSON: {"score":3,"reasoning":"2-3 sentences"}';
-  var results=await Promise.all([callScore(macroPrompt),callScore(microPrompt)]);
-  var mr=results[0],mir=results[1];
-  l.macro=Math.min(4,Math.max(1,Math.round(mr.score*2)/2));
-  l.macro_reasoning=mr.reasoning||'';
-  l.micro=Math.min(4,Math.max(1,Math.round(mir.score*2)/2));
-  l.micro_reasoning=mir.reasoning||'';
-  l.combined=parseFloat(((l.macro+l.micro)/2).toFixed(1));
   return true;
 }
 

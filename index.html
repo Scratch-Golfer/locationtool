@@ -1371,6 +1371,18 @@ async function runBatchScore(){
       // Macro
       if(s.macro_score_v2==null){
         var pc=xpc(s.address);
+        // If no postcode in address, try geocoding to extract one
+        if(!pc){
+          try{
+            var gcR=await fetch('https://maps.googleapis.com/maps/api/geocode/json?address='+encodeURIComponent(s.address)+'&region=gb&key='+GK);
+            var gcD=await gcR.json();
+            if(gcD.status==='OK'&&gcD.results.length){
+              var comps=gcD.results[0].address_components;
+              var pcComp=comps.find(function(c){return c.types.indexOf('postal_code')>=0;});
+              if(pcComp)pc=pcComp.long_name;
+            }
+          }catch(e){}
+        }
         if(pc){
           var ep=encodeURIComponent(pc);
           var[dr,pr]=await Promise.all([

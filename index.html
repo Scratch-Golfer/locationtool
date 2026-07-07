@@ -1025,10 +1025,9 @@ async function runV2Macro(){
   var steps=['Fetching demographics','Fetching deprivation','Computing score'];svp(steps,0,'run','');
   try{
     var ep=encodeURIComponent(pc);
-    var SUPABASE_URL2='https://mfhcqxquzjknzifjebvu.supabase.co';
     var[dr,pr]=await Promise.all([
-      fetch(SUPABASE_URL2+'/functions/v1/hyper-worker',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON_KEY},body:JSON.stringify({homedata_url:'https://api.homedata.co.uk/api/demographics/?postcode='+ep})}),
-      fetch(SUPABASE_URL2+'/functions/v1/hyper-worker',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON_KEY},body:JSON.stringify({homedata_url:'https://api.homedata.co.uk/api/deprivation/?postcode='+ep})})
+      fetch('https://api.homedata.co.uk/api/demographics/?postcode='+ep,{mode:'cors',headers:{'Authorization':'Api-Key EyVRzn5O.UePfMTpM7rldFJL55Do9PeyzrEE1METa','Accept':'application/json'}}),
+      fetch('https://api.homedata.co.uk/api/deprivation/?postcode='+ep,{mode:'cors',headers:{'Authorization':'Api-Key EyVRzn5O.UePfMTpM7rldFJL55Do9PeyzrEE1METa','Accept':'application/json'}})
     ]);
     var dem=await dr.json();var dep=await pr.json();
     if(dem.postcode===undefined&&dem.content){{dem=JSON.parse(dem.content[0].text||'{{}}');}}

@@ -225,6 +225,7 @@ textarea:focus{border-color:#3B6D11;}
       <button class="ghost-btn" id="btn-tasks-view">Tasks</button>
       <button class="ghost-btn" id="btn-add-prosp">+ Add prospecting</button>
       <button class="ghost-btn" id="btn-refresh">Refresh</button>
+      <button class="ghost-btn" id="btn-batch-score" onclick="runBatchScore()" style="color:#3B6D11;border-color:#3B6D11">⚡ Score all</button>
       <button class="logout-btn" id="btn-logout">Sign out</button>
     </div>
   </div>
@@ -283,7 +284,10 @@ textarea:focus{border-color:#3B6D11;}
       <div class="dv-card">
         <div class="sec-lbl">Property</div>
         <div class="dgrid">
-          <div style="grid-column:1/-1"><div class="df-lbl">Address</div><input class="df-edit" id="dv-addr-in" placeholder="Full address"></div>
+          <div style="grid-column:1/-1;display:grid;grid-template-columns:1fr 2fr;gap:10px">
+            <div><div class="df-lbl">Site name <span style="font-weight:400;color:#aaa">(optional)</span></div><input class="df-edit" id="dv-name-in" placeholder="e.g. Crouch End Unit"></div>
+            <div><div class="df-lbl">Address</div><input class="df-edit" id="dv-addr-in" placeholder="Full address"></div>
+          </div>
           <div><div class="df-lbl">Floor area (sq ft)</div><input class="df-edit" id="dv-sqft-in" type="number" placeholder="—"></div>
           <div><div class="df-lbl">Rent p.a. (£)</div><input class="df-edit" id="dv-rent-in" type="number" placeholder="—"></div>
           <div><div class="df-lbl">Service charge (£/sqft)</div><input class="df-edit" id="dv-sc-in" type="number" step="0.01" placeholder="—"></div>
@@ -703,7 +707,7 @@ function renderList(){
     if(s.micro_score_v2!=null)scoreHtml+='<span style="font-size:9px;color:#9b9a95">m</span>'+scoreChip(s.micro_score_v2,5);
     if(!s.macro_score_v2&&!s.micro_score_v2)scoreHtml+=scoreChip(null,5);
     scoreHtml+='</div>';
-    var addrShort=esc(s.address.split(',')[0]);
+    var addrShort=s.name?esc(s.name):esc(s.address.split(',')[0]);
     var addrFull=esc(s.address);
     var agent=[s.agent_name,s.agency_name].filter(Boolean).join(' \u00b7 ')||'—';
     var action=esc(s.next_action||'');
@@ -762,8 +766,9 @@ function openDetail(id){setTimeout(function(){var sx=sites.find(function(x){retu
   g('list-view').style.display='none';g('detail-view').style.display='block';
   var stage=siteStage(s);
   var bd=stageBadge(s);
-  g('dv-title').textContent=s.address.split(',')[0];
+  g('dv-title').textContent=s.name||s.address.split(',')[0];
   g('dv-badge').className='badge '+bd.cls;g('dv-badge').textContent=bd.lbl;
+  g('dv-name-in').value=s.name||'';
   g('dv-addr-in').value=s.address||'';
   g('dv-sqft-in').value=s.sqft||'';
   g('dv-rent-in').value=s.rent||'';
@@ -1345,10 +1350,91 @@ async function runV2Micro(){
 function editAddress(){/* now inline */}
 var sortMode='date';
 
+// Batch scoring
+var batchRunning=false;
+async function runBatchScore(){
+  if(batchRunning){alert('Batch score already running');return;}
+  var targets=sites.filter(function(s){
+    return !isRej(s)&&s.address&&(s.macro_score_v2==null||s.micro_score_v2==null);
+  });
+  if(!targets.length){alert('All active sites already have scores.');return;}
+  if(!confirm('Score '+targets.length+' sites without scores? This will use API credits and may take a few minutes.'))return;
+  batchRunning=true;
+  var btn=g('btn-batch-score');btn.textContent='⚡ Scoring... 0/'+targets.length;btn.disabled=true;
+  var done=0,errors=0;
+  for(var i=0;i<targets.length;i++){
+    var s=targets[i];
+    btn.textContent='⚡ Scoring... '+done+'/'+targets.length+' ('+esc(s.name||s.address.split(',')[0])+')';
+    try{
+      // Macro
+      if(s.macro_score_v2==null){
+        var pc=xpc(s.address);
+        if(pc){
+          var ep=encodeURIComponent(pc);
+          var[dr,pr]=await Promise.all([
+            fetch('https://api.homedata.co.uk/api/demographics/?postcode='+ep,{headers:{'Authorization':'Api-Key '+HK}}),
+            fetch('https://api.homedata.co.uk/api/deprivation/?postcode='+ep,{headers:{'Authorization':'Api-Key '+HK}})
+          ]);
+          var dem=await dr.json();var dep=await pr.json();
+          if(!dem.error){
+            var d={professionals:parseFloat((dem.occupation||{}).managerial_professional_pct||0),age_30_44:parseFloat((dem.age||{}).age_30_44_pct||0),age_16_29:parseFloat((dem.age||{}).age_16_29_pct||0),private_rent:parseFloat((dem.tenure||{}).private_rented_pct||0),social_rent:parseFloat((dem.tenure||{}).social_rented_pct||0),deprivation:parseFloat(((dep.overall)||{}).score||4)};
+            var W=cmw(d);var macroSc=Math.min(5,Math.max(1,Math.round(1+W*4)));
+            var rsn=[d.professionals>=59?'Professional density ('+d.professionals.toFixed(0)+'%) close to benchmark.':'Professional density ('+d.professionals.toFixed(0)+'%) below 66% benchmark.',(d.age_30_44+d.age_16_29)>=58?'Strong 25-44 age ('+(d.age_30_44+d.age_16_29).toFixed(0)+'% combined).':'25-44 age at '+(d.age_30_44+d.age_16_29).toFixed(0)+'%.',d.deprivation>=3.4?'Deprivation ('+d.deprivation+'/10) consistent.':'Deprivation ('+d.deprivation+'/10) below benchmark.'].join(' ');
+            await patchSite(s.id,{macro_score_v2:macroSc,macro_score_v2_reasoning:rsn,macro_score_data:JSON.stringify(d)});
+            s.macro_score_v2=macroSc;s.macro_score_v2_reasoning=rsn;
+          }
+        }
+      }
+      // Micro
+      if(s.micro_score_v2==null){
+        var geoR=await fetch('https://maps.googleapis.com/maps/api/geocode/json?address='+encodeURIComponent(s.address)+'&region=gb&key='+GK);
+        var geoD=await geoR.json();
+        if(geoD.status==='OK'&&geoD.results.length){
+          var lat=geoD.results[0].geometry.location.lat;
+          var lng=geoD.results[0].geometry.location.lng;
+          var fmt=geoD.results[0].formatted_address;
+          var plR=await fetch('https://places.googleapis.com/v1/places:searchNearby',{method:'POST',headers:{'Content-Type':'application/json','X-Goog-Api-Key':GK,'X-Goog-FieldMask':'places.displayName,places.types,places.userRatingCount'},body:JSON.stringify({locationRestriction:{circle:{center:{latitude:lat,longitude:lng},radius:400.0}},maxResultCount:20})});
+          var plD=await plR.json();
+          var pl2=(plD.places||[]).map(function(p){return{name:(p.displayName||{}).text||'',types:p.types||['establishment'],user_ratings_total:p.userRatingCount||0};});
+          var pv2=pl2.filter(function(p){return cv2(p.types)==='pos';}).sort(function(a,b){return(b.user_ratings_total||0)-(a.user_ratings_total||0);}).slice(0,6).map(function(p){return p.name;});
+          var nv2=pl2.filter(function(p){return cv2(p.types)==='neg';}).map(function(p){return p.name;});
+          var streetM=fmt.match(/\d+\s+([\w\s]+(?:Road|Street|Lane|Avenue|Way|Place|Terrace|Gardens|Grove|Hill|Parade|Rise|Mews|Close|Court|Broadway)[\w\s]*?)(?:,|\s+London)/i);
+          var sn=streetM?streetM[1].trim():'the street';
+          var str100=[];
+          try{var s100R=await fetch('https://places.googleapis.com/v1/places:searchNearby',{method:'POST',headers:{'Content-Type':'application/json','X-Goog-Api-Key':GK,'X-Goog-FieldMask':'places.displayName,places.types'},body:JSON.stringify({locationRestriction:{circle:{center:{latitude:lat,longitude:lng},radius:100.0}},maxResultCount:20})});var s100D=await s100R.json();str100=(s100D.places||[]).map(function(p){return(p.displayName||{}).text||'';});}catch(e){}
+          var prompt='Score for Scratch Golf (golf simulator, 30-34 professionals, 41% walk-past discovery).\nAddress: '+fmt+'\nBusinesses within 100m ('+str100.length+'): '+(str100.join(', ')||'none found')+'\nPositive venues 400m: '+(pv2.join(', ')||'None')+'\nNegative venues 400m: '+(nv2.join(', ')||'None')+'\nScore 1-5: 1=hidden/industrial 2=quiet side street 3=moderate passing trade 4=good through-route 5=exceptional footfall\nReply ONLY: {"score":3,"reasoning":"2 sentences"}';
+          var aiR=await fetch(EDGE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON_KEY},body:JSON.stringify({prompt:prompt})});
+          var aiT=await aiR.text();
+          if(aiT){
+            var aiD=JSON.parse(aiT);
+            var aiSc=Math.min(5,Math.max(1,Math.round(parseFloat(aiD.score||3))));
+            var vSc=vs5(pl2);var iSc=is5(pl2);
+            var microSc=Math.min(5,Math.max(1,Math.round(vSc*0.30+iSc*0.35+aiSc*0.35)));
+            await patchSite(s.id,{micro_score_v2:microSc,micro_score_v2_reasoning:aiD.reasoning||'',lat:lat,lng:lng});
+            s.micro_score_v2=microSc;s.micro_score_v2_reasoning=aiD.reasoning||'';
+          }
+        }
+      }
+      done++;
+    }catch(e){
+      console.error('Batch error for '+s.address+':',e);
+      errors++;done++;
+    }
+    await new Promise(function(r){setTimeout(r,500);});
+  }
+  batchRunning=false;
+  btn.textContent='⚡ Score all';btn.disabled=false;
+  renderList();renderStats();
+  alert('Done! '+done+' sites scored'+(errors?' ('+errors+' errors)':'')+'.');
+}
+
+
 function savePropFields(){
   if(!curId)return;
   var addr=g('dv-addr-in').value.trim();
+  var siteName=g('dv-name-in').value.trim();
   var patch={
+    name:siteName||null,
     address:addr||undefined,
     sqft:g('dv-sqft-in').value||null,
     rent:g('dv-rent-in').value||null,
@@ -1358,7 +1444,8 @@ function savePropFields(){
     agent_name:g('dv-agent-in').value.trim()||null,
     agency_name:g('dv-agency-in').value.trim()||null
   };
-  if(patch.address)g('dv-title').textContent=addr.split(',')[0];
+  if(siteName)g('dv-title').textContent=siteName;
+  else if(patch.address)g('dv-title').textContent=addr.split(',')[0];
   var tot=g('dv-tot');
   if(patch.rent&&patch.service_charge!=null&&patch.sqft){
     tot.textContent=fT(patch.rent,patch.service_charge,patch.sqft);

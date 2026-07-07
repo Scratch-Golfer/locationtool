@@ -374,57 +374,10 @@ textarea:focus{border-color:#3B6D11;}
           <div class="sec-lbl">Site coordinates</div>
           <label class="field-lbl">Coordinates (from Google Maps)</label>
           <div class="field-note">Right-click the entrance on Google Maps and paste the coordinates here</div>
-          <input type="text" id="inp-coords" placeholder="e.g. 51deg28'26.8N 0deg12'00.4W" style="margin-bottom:6px;">
-          <div id="coords-preview" style="font-size:11px;font-family:monospace;margin-top:4px;display:none;"></div>
+          <input type="text" id="inp-coords" placeholder="e.g. 51.4489, -0.1484">
           <div style="margin-top:10px;">
             <button class="ghost-btn" id="btn-sv-coords">Save coordinates</button>
             <span id="coords-ok" style="font-size:12px;color:#3B6D11;margin-left:8px;display:none;">Saved</span>
-          </div>
-        </div>
-        <div class="dv-card">
-          <div class="sec-lbl">Macro location score</div>
-          <p style="font-size:12px;color:#666;margin-bottom:1rem;line-height:1.6;">Residential concentration of 25&ndash;40 year olds with disposable income within a 15-min walk/cycle. Scored 1&ndash;4.</p>
-          <div class="score-section">
-            <div class="score-section-title"><span>AI score</span><button class="ai-btn" id="btn-macro-ai">Generate AI score</button></div>
-            <div id="macro-ai-loading" style="display:none;font-size:13px;color:#888;padding:8px 0;"><span class="spin"></span>Analysing neighbourhood&hellip;</div>
-            <div id="macro-ai-result" style="display:none;">
-              <div class="score-display"><div class="score-bubble" id="macro-ai-bubble">&mdash;</div><div style="font-size:12px;color:#666;">out of 4</div></div>
-              <div class="score-reasoning" id="macro-ai-reasoning"></div>
-            </div>
-          </div>
-          <div class="score-section">
-            <div class="score-section-title"><span>Your score</span></div>
-            <div class="score-btns" id="macro-h-btns">
-              <button class="sbtn" data-v="1">1</button><button class="sbtn" data-v="2">2</button><button class="sbtn" data-v="3">3</button><button class="sbtn" data-v="4">4</button>
-            </div>
-            <div class="score-desc" id="macro-h-desc">Select a score above.</div>
-            <span id="macro-h-ok" style="font-size:12px;color:#3B6D11;display:none;margin-top:6px;display:block;">Saved</span>
-          </div>
-        </div>
-        <div class="dv-card">
-          <div class="sec-lbl">Micro location score</div>
-          <p style="font-size:12px;color:#666;margin-bottom:1rem;line-height:1.6;">Street type, visibility and accessibility. Scored 1&ndash;4.</p>
-          <div class="score-section">
-            <div class="score-section-title"><span>AI score</span><button class="ai-btn" id="btn-micro-ai">Generate AI score</button></div>
-            <div id="micro-ai-loading" style="display:none;font-size:13px;color:#888;padding:8px 0;"><span class="spin"></span>Assessing micro-location&hellip;</div>
-            <div id="micro-ai-result" style="display:none;">
-              <div class="score-display"><div class="score-bubble" id="micro-ai-bubble">&mdash;</div><div style="font-size:12px;color:#666;">out of 4</div></div>
-              <div class="score-reasoning" id="micro-ai-reasoning"></div>
-            </div>
-          </div>
-          <div class="score-section">
-            <div class="score-section-title"><span>Your score</span></div>
-            <div class="score-btns" id="micro-h-btns">
-              <button class="sbtn" data-v="1">1</button><button class="sbtn" data-v="2">2</button><button class="sbtn" data-v="3">3</button><button class="sbtn" data-v="4">4</button>
-            </div>
-            <div class="score-desc" id="micro-h-desc">Select a score above.</div>
-            <span id="micro-h-ok" style="font-size:12px;color:#3B6D11;display:none;margin-top:6px;display:block;">Saved</span>
-          </div>
-        </div>
-        <div id="blended-wrap" style="display:none;">
-          <div class="blended-box">
-            <div><div class="blended-lbl">Blended location score</div><div class="blended-score" id="blended-val">&mdash;</div></div>
-            <div><div class="blended-sub" id="blended-breakdown"></div></div>
           </div>
         </div>
       </div>

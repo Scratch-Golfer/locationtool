@@ -1020,7 +1020,7 @@ function showV2Card(s){
 }
 async function runV2Macro(){
   var s=sites.find(function(x){return x.id===curId;});if(!s)return;
-  var pc=xpc(s.address);if(!pc){alert('No postcode in address — use Edit address.');return;}
+  var pc=xpc(s.address);if(!pc){alert('No UK postcode found in this address. Click "Edit address" to add one, e.g. append SW11 2PP to the address.');return;}
   var btn=g('v2-macro-btn');btn.disabled=true;btn.textContent='Running...';
   var steps=['Fetching demographics','Fetching deprivation','Computing score'];svp(steps,0,'run','');
   try{

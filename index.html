@@ -6,7 +6,7 @@
 <title>Scratch Golf — Location Pipeline</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f2;color:#1a1a1a;min-height:100vh;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f2;color:#1a1a1a;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
 .login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:1rem;}
 .login-card{background:#fff;border-radius:12px;border:1px solid #e8e8e3;padding:2.5rem 2rem;width:100%;max-width:340px;text-align:center;}
 .login-logo{font-size:13px;font-weight:700;letter-spacing:.08em;color:#3B6D11;margin-bottom:1.5rem;}
@@ -16,8 +16,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .login-btn{width:100%;padding:10px;font-size:14px;font-weight:600;background:#3B6D11;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;}
 .login-btn:hover{background:#27500A;}
 .login-err{font-size:12px;color:#c0392b;margin-top:8px;display:none;}
-#app{display:block;}
-.topbar{background:#fff;border-bottom:1px solid #e8e8e3;padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:5;}
+#app{display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0;}
+.topbar{background:#fff;border-bottom:1px solid #e8e8e3;padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:44px;flex-shrink:0;}
 .topbar-logo{font-size:13px;font-weight:700;letter-spacing:.08em;color:#3B6D11;}
 .topbar-right{display:flex;align-items:center;gap:10px;}
 .ghost-btn{padding:6px 14px;font-size:12px;font-weight:500;border:1px solid #ddd;border-radius:8px;cursor:pointer;background:transparent;color:#333;font-family:inherit;}
@@ -25,20 +25,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .logout-btn{font-size:12px;color:#999;cursor:pointer;background:none;border:none;font-family:inherit;}
 .logout-btn:hover{color:#333;}
 .main{max-width:980px;margin:0 auto;padding:2rem 1rem;}
-.pipeline{display:flex;align-items:stretch;margin-bottom:1.5rem;background:#fff;border:1px solid #e8e8e3;border-radius:12px;overflow:hidden;}
-.pipe-stage{flex:1;padding:1rem 1.25rem;border-right:1px solid #e8e8e3;}
+#list-view{display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0;}
+.pipeline{display:flex;align-items:stretch;background:#fff;border:1px solid #e8e8e3;border-radius:8px;overflow:hidden;margin:0 1rem 0;}
+
+.pipe-stage{flex:1;padding:0.6rem 1rem;border-right:1px solid #e8e8e3;}
 .pipe-stage:last-child{border-right:none;}
 .pipe-lbl{font-size:11px;font-weight:600;letter-spacing:.05em;color:#aaa;text-transform:uppercase;margin-bottom:3px;}
 .pipe-name{font-size:12px;color:#666;margin-bottom:8px;}
 .pipe-n{font-size:28px;font-weight:700;}
 .pipe-rej{background:#fdf0ee;}
 .pipe-rej .pipe-lbl{color:#c0392b;}
-.filters{display:flex;gap:6px;margin-bottom:1.25rem;flex-wrap:wrap;}
+.filters{display:flex;gap:6px;flex-wrap:wrap;padding:8px 16px;border-bottom:1px solid #e8e8e3;background:#fff;flex-shrink:0;}
 .ftab{padding:6px 14px;font-size:12px;font-weight:500;border:1px solid #ddd;border-radius:100px;cursor:pointer;background:transparent;color:#666;font-family:inherit;}
 .ftab:hover{background:#f5f5f2;}
 .ftab.on{background:#1a1a1a;color:#fff;border-color:#1a1a1a;}
 /* TABLE LIST */
-#cards-wrap{overflow:auto;flex:1;}
+#cards-wrap{overflow:auto;flex:1;min-height:0;}
 #cards-table{width:100%;border-collapse:collapse;}
 #cards-table thead tr{background:#fff;border-bottom:1.5px solid #d0cfc9;position:sticky;top:0;z-index:2;}
 #cards-table th{padding:6px 10px;text-align:left;font-size:10px;font-weight:600;color:#9b9a95;letter-spacing:.05em;white-space:nowrap;user-select:none;}
@@ -64,8 +66,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .pip-s4{background:#3B6D11;color:#fff;}
 .pip-rej{background:#fdf0ee;color:#A32D2D;}
 .new-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#639922;margin-left:4px;vertical-align:middle;}
-#app{display:block;}
-.topbar{background:#fff;border-bottom:1px solid #e8e8e3;padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:5;}
+#app{display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0;}
+.topbar{background:#fff;border-bottom:1px solid #e8e8e3;padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:44px;flex-shrink:0;}
 .topbar-logo{font-size:13px;font-weight:700;letter-spacing:.08em;color:#3B6D11;}
 .topbar-right{display:flex;align-items:center;gap:10px;}
 .ghost-btn{padding:6px 14px;font-size:12px;font-weight:500;border:1px solid #ddd;border-radius:8px;cursor:pointer;background:transparent;color:#333;font-family:inherit;}
@@ -73,15 +75,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .logout-btn{font-size:12px;color:#999;cursor:pointer;background:none;border:none;font-family:inherit;}
 .logout-btn:hover{color:#333;}
 .main{max-width:980px;margin:0 auto;padding:2rem 1rem;}
-.pipeline{display:flex;align-items:stretch;margin-bottom:1.5rem;background:#fff;border:1px solid #e8e8e3;border-radius:12px;overflow:hidden;}
-.pipe-stage{flex:1;padding:1rem 1.25rem;border-right:1px solid #e8e8e3;}
+#list-view{display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0;}
+.pipeline{display:flex;align-items:stretch;background:#fff;border:1px solid #e8e8e3;border-radius:8px;overflow:hidden;margin:0 1rem 0;}
+
+.pipe-stage{flex:1;padding:0.6rem 1rem;border-right:1px solid #e8e8e3;}
 .pipe-stage:last-child{border-right:none;}
 .pipe-lbl{font-size:11px;font-weight:600;letter-spacing:.05em;color:#aaa;text-transform:uppercase;margin-bottom:3px;}
 .pipe-name{font-size:12px;color:#666;margin-bottom:8px;}
 .pipe-n{font-size:28px;font-weight:700;}
 .pipe-rej{background:#fdf0ee;}
 .pipe-rej .pipe-lbl{color:#c0392b;}
-.filters{display:flex;gap:6px;margin-bottom:1.25rem;flex-wrap:wrap;}
+.filters{display:flex;gap:6px;flex-wrap:wrap;padding:8px 16px;border-bottom:1px solid #e8e8e3;background:#fff;flex-shrink:0;}
 .ftab{padding:6px 14px;font-size:12px;font-weight:500;border:1px solid #ddd;border-radius:100px;cursor:pointer;background:transparent;color:#666;font-family:inherit;}
 .ftab:hover{background:#f5f5f2;}
 .ftab.on{background:#1a1a1a;color:#fff;border-color:#1a1a1a;}
@@ -230,7 +234,7 @@ textarea:focus{border-color:#3B6D11;}
         </div>
         <div id="tasks-panel-list"><div class="empty" style="padding:1rem;">No outstanding tasks.</div></div>
       </div>
-      <div id="pipeline-wrap">
+      <div id="pipeline-wrap" style="display:none;padding:8px 16px 0;flex-shrink:0">
         <div class="pipeline">
           <div class="pipe-stage"><div class="pipe-lbl">Prospecting</div><div class="pipe-n" id="ps-0">&mdash;</div></div>
           <div class="pipe-stage"><div class="pipe-lbl">Stage 1</div><div class="pipe-n" id="ps-1">&mdash;</div></div>
@@ -240,8 +244,8 @@ textarea:focus{border-color:#3B6D11;}
           <div class="pipe-stage pipe-rej"><div class="pipe-lbl">Rejected</div><div class="pipe-n" id="ps-rej">&mdash;</div></div>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:0;padding:0 0 0 0">
-        <button onclick="document.getElementById('pipeline-wrap').style.display=document.getElementById('pipeline-wrap').style.display==='none'?'block':'none'" style="font-size:11px;color:#9b9a95;background:none;border:none;cursor:pointer;padding:4px 12px 4px 0;white-space:nowrap">⊟ Summary</button>
+      <div style="display:flex;align-items:center;padding:4px 16px;border-bottom:1px solid #e8e8e3;background:#fff;flex-shrink:0">
+        <button onclick="var pw=document.getElementById('pipeline-wrap');pw.style.display=pw.style.display==='none'?'block':'none'" style="font-size:11px;color:#9b9a95;background:none;border:none;cursor:pointer;padding:2px 0;white-space:nowrap">Pipeline summary ▾</button>
       </div>
       <div class="filters">
         <button class="ftab on" data-f="all">All active</button>
@@ -252,7 +256,7 @@ textarea:focus{border-color:#3B6D11;}
         <button class="ftab" data-f="s4">Stage 4</button>
         <button class="ftab" data-f="rejected">Rejected</button>
       </div>
-      <div id="cards-wrap"><table id="cards-table"><thead><tr><th>Address</th><th>Stage</th><th>Scores</th><th>Size</th><th>Rent p.a.</th><th>£/sqft</th><th>Bays</th><th>Agent</th><th>Action</th><th>Added</th></tr></thead><tbody id="cards"></tbody></table></div>
+      <div id="cards-wrap"><table id="cards-table"><thead><tr><th style="min-width:180px">Address</th><th>Stage</th><th>Scores</th><th>Size</th><th>Rent p.a.</th><th>£/sqft</th><th>Bays</th><th>Agent</th><th style="min-width:200px">Next action</th><th>Added</th></tr></thead><tbody id="cards"></tbody></table></div>
     </div>
 
     <div id="detail-view" style="display:none;">

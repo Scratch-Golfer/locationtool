@@ -231,6 +231,40 @@ textarea:focus{border-color:#3B6D11;}
         </div>
       </div>
 
+      <!-- V2 Scoring: Macro + Micro data-driven scores -->
+      <div class="dv-card" id="v2-scoring-card" style="display:none">
+        <div class="sec-lbl">Location scores (data-driven)</div>
+        <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+          <button class="ai-btn" id="v2-macro-btn" onclick="runV2Macro()">Run macro score</button>
+          <button class="ai-btn" id="v2-micro-btn" onclick="runV2Micro()">Run micro score</button>
+        </div>
+        <div id="v2-progress" style="display:none;margin-bottom:10px"></div>
+        <div id="v2-macro-result" style="display:none;margin-bottom:12px">
+          <div class="score-display">
+            <div class="score-bubble score-high" id="v2-macro-bubble">-</div>
+            <div>
+              <div style="font-size:13px;font-weight:600">Macro score (demographics)</div>
+              <div style="font-size:11px;color:#888">Benchmarked against Balham + Wandsworth · 1-5 scale</div>
+            </div>
+          </div>
+          <div class="score-reasoning" id="v2-macro-reasoning"></div>
+        </div>
+        <div id="v2-micro-result" style="display:none;margin-bottom:12px">
+          <div class="score-display">
+            <div class="score-bubble score-high" id="v2-micro-bubble">-</div>
+            <div>
+              <div style="font-size:13px;font-weight:600">Micro score (footfall + street)</div>
+              <div style="font-size:11px;color:#888">Google Places 400m · Claude street assessment · 1-5 scale</div>
+            </div>
+          </div>
+          <div class="score-reasoning" id="v2-micro-reasoning"></div>
+        </div>
+        <div id="v2-combined-wrap" style="display:none">
+          <div style="font-size:11px;color:#888;margin-bottom:4px">Combined (avg macro + micro)</div>
+          <div style="font-size:28px;font-weight:700;color:#3B6D11" id="v2-combined-val">-</div>
+        </div>
+      </div>
+
       <!-- Stage 0: Prospecting -->
       <div id="sec-s0" style="display:none;">
         <div class="dv-card">
@@ -400,39 +434,6 @@ textarea:focus{border-color:#3B6D11;}
         </div>
       </div>
 
-      <!-- V2 Scoring: Macro + Micro data-driven scores -->
-      <div class="dv-card" id="v2-scoring-card" style="display:none">
-        <div class="sec-lbl">Location scores (data-driven)</div>
-        <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-          <button class="ai-btn" id="v2-macro-btn" onclick="runV2Macro()">Run macro score</button>
-          <button class="ai-btn" id="v2-micro-btn" onclick="runV2Micro()">Run micro score</button>
-        </div>
-        <div id="v2-progress" style="display:none;margin-bottom:10px"></div>
-        <div id="v2-macro-result" style="display:none;margin-bottom:12px">
-          <div class="score-display">
-            <div class="score-bubble score-high" id="v2-macro-bubble">-</div>
-            <div>
-              <div style="font-size:13px;font-weight:600">Macro score (demographics)</div>
-              <div style="font-size:11px;color:#888">Benchmarked against Balham + Wandsworth · 1-5 scale</div>
-            </div>
-          </div>
-          <div class="score-reasoning" id="v2-macro-reasoning"></div>
-        </div>
-        <div id="v2-micro-result" style="display:none;margin-bottom:12px">
-          <div class="score-display">
-            <div class="score-bubble score-high" id="v2-micro-bubble">-</div>
-            <div>
-              <div style="font-size:13px;font-weight:600">Micro score (footfall + street)</div>
-              <div style="font-size:11px;color:#888">Google Places 400m · Claude street assessment · 1-5 scale</div>
-            </div>
-          </div>
-          <div class="score-reasoning" id="v2-micro-reasoning"></div>
-        </div>
-        <div id="v2-combined-wrap" style="display:none">
-          <div style="font-size:11px;color:#888;margin-bottom:4px">Combined (avg macro + micro)</div>
-          <div style="font-size:28px;font-weight:700;color:#3B6D11" id="v2-combined-val">-</div>
-        </div>
-      </div>
 
       <!-- Stage 3: Site viewing -->
       <div id="sec-s3" style="display:none;">
@@ -693,7 +694,7 @@ function openDetail(id){
     else{g('brochure-view').style.display='none';}
     g('brochure-status').textContent='';
   }
-  if(stage===2){ showV2Card(s);
+  showV2Card(s); if(stage===2){
     if(s.lat&&s.lng)g('inp-coords').value=s.lat+', '+s.lng;else g('inp-coords').value='';
     g('coords-preview').style.display='none';
     if(s.macro_ai_score!=null){g('macro-ai-bubble').textContent=s.macro_ai_score;g('macro-ai-bubble').className='score-bubble '+scClass(s.macro_ai_score);g('macro-ai-reasoning').textContent=s.macro_ai_reasoning||'';g('macro-ai-result').style.display='block';}else{g('macro-ai-result').style.display='none';}
@@ -1226,6 +1227,8 @@ function showV2Card(s){
   var card=g('v2-scoring-card');
   if(!card)return;
   card.style.display='block';
+  g('v2-macro-btn').textContent=s.macro_score_v2!=null?'Re-run macro score':'Run macro score';
+  g('v2-micro-btn').textContent=s.micro_score_v2!=null?'Re-run micro score':'Run micro score';
   if(s.macro_score_v2!=null){
     g('v2-macro-bubble').textContent=s.macro_score_v2;
     g('v2-macro-bubble').className='score-bubble '+scClass5(s.macro_score_v2);

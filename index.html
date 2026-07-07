@@ -1615,142 +1615,220 @@ function downloadReport(){
   if(!s.macro_score_v2&&!s.micro_score_v2){alert('Run location scores first before downloading a report.');return;}
 
   var doc=new window.jspdf.jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-  var W=210,M=20,CW=170;
+  var PW=210,M=18,CW=174;
   var today=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
   var y=0;
 
-  function hex2rgb(h){h=h.replace('#','');return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
-  function fill(h){doc.setFillColor.apply(doc,hex2rgb(h));}
-  function ink(h){doc.setTextColor.apply(doc,hex2rgb(h));}
-  function rect(x,ry,w,h,c){fill(c);doc.rect(x,ry,w,h,'F');}
-  function combined(){if(s.macro_score_v2!=null&&s.micro_score_v2!=null)return(s.macro_score_v2*0.6+s.micro_score_v2*0.4).toFixed(1);return s.macro_score_v2||s.micro_score_v2||'--';}
+  function h2r(h){h=h.replace('#','');return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
+  function fill(h){doc.setFillColor.apply(doc,h2r(h));}
+  function ink(h){doc.setTextColor.apply(doc,h2r(h));}
+  function box(x,ry,w,h,c){fill(c);doc.rect(x,ry,w,h,'F');}
+  function rbox(x,ry,w,h,r,c){fill(c);doc.roundedRect(x,ry,w,h,r,r,'F');}
+  function hline(ry,c){doc.setDrawColor.apply(doc,h2r(c||'#E8E7E2'));doc.setLineWidth(0.3);doc.line(M,ry,PW-M,ry);}
+  function combined(){
+    if(s.macro_score_v2!=null&&s.micro_score_v2!=null)return(s.macro_score_v2*0.6+s.micro_score_v2*0.4).toFixed(1);
+    return s.macro_score_v2||s.micro_score_v2||'--';
+  }
   function scCol(n){return parseFloat(n)>=4?'#3B6D11':parseFloat(n)>=3?'#854F0B':'#8B2020';}
+  function scBg(n){return parseFloat(n)>=4?'#EAF0E2':parseFloat(n)>=3?'#FEF3E2':'#FCEAEA';}
   function scLbl(n){n=parseFloat(n);if(n>=4.5)return'Exceptional';if(n>=4)return'Strong match';if(n>=3)return'Moderate match';if(n>=2)return'Weak match';return'Poor match';}
-  function ratCol(r){return r>=1.0?'#3B6D11':r>=0.75?'#854F0B':'#8B2020';}
-  function ratBg(r){return r>=1.0?'#EAF0E2':r>=0.75?'#FEF3E2':'#FCEAEA';}
+  function rCol(r){return r>=1.0?'#3B6D11':r>=0.75?'#854F0B':'#8B2020';}
+  function rBg(r){return r>=1.0?'#EAF0E2':r>=0.75?'#FEF3E2':'#FCEAEA';}
 
-  // Header
-  rect(0,0,W,30,'#1C3A0E');
-  doc.setFontSize(7);doc.setFont('helvetica','bold');ink('#AABBAA');
-  doc.text('SCRATCH GOLF CLUB',M,8);doc.text('LOCATION SCORE REPORT',W-M,8,{align:'right'});
-  doc.setFontSize(17);ink('#FFFFFF');
-  doc.text(s.name||s.address.split(',')[0],M,18);
-  doc.setFontSize(8);doc.setFont('helvetica','normal');ink('#CCDDBB');
-  var alines=doc.splitTextToSize(s.address,CW);doc.text(alines,M,24);
-  y=34;
+  // ── HEADER ──
+  box(0,0,PW,36,'#1C3A0E');
+  doc.setFontSize(7);doc.setFont('helvetica','bold');ink('#99BB88');
+  doc.text('SCRATCH GOLF CLUB',M,9);
+  doc.text('LOCATION SCORE REPORT',PW-M,9,{align:'right'});
+  doc.setFontSize(18);doc.setFont('helvetica','bold');ink('#FFFFFF');
+  var siteName=s.name||s.address.split(',')[0];
+  doc.text(siteName,M,20);
+  doc.setFontSize(8.5);doc.setFont('helvetica','normal');ink('#AACCAA');
+  var alines=doc.splitTextToSize(s.address,CW);
+  doc.text(alines,M,27);
+  y=40;
 
-  // Meta strip
-  rect(0,y,W,10,'#0D2006');
+  // ── META STRIP ──
+  box(0,y,PW,12,'#0D2206');
   var pc=(s.address.match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i)||['--'])[0];
-  doc.setFontSize(7);doc.setFont('helvetica','bold');ink('#AABBAA');
-  doc.text('DATE',M,y+4);doc.text('POSTCODE',M+55,y+4);doc.text('COMBINED',M+110,y+4);
-  ink('#FFFFFF');doc.setFontSize(8);
-  doc.text(today,M,y+9);doc.text(pc,M+55,y+9);doc.text(String(combined())+'/5',M+110,y+9);
-  y+=14;
-
-  // Score blocks
-  var scores=[{l:'COMBINED',sub:'60% mac / 40% mic',v:combined(),d:scLbl(combined())},{l:'MACRO',sub:'Demographics',v:s.macro_score_v2||'--',d:'Catchment quality'},{l:'MICRO',sub:'Footfall + street',v:s.micro_score_v2||'--',d:'Walk-past potential'}];
-  scores.forEach(function(sc,i){
-    var bx=M+i*(CW/3);var bw=CW/3;
-    rect(bx,y,bw,22,i===0?'#F8F7F3':'#FFFFFF');
-    doc.setDrawColor(220,218,212);doc.setLineWidth(0.3);doc.rect(bx,y,bw,22);
-    doc.setFontSize(7);doc.setFont('helvetica','bold');ink('#888888');doc.text(sc.l,bx+bw/2,y+5,{align:'center'});
-    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.text(sc.sub,bx+bw/2,y+9,{align:'center'});
-    var vc=sc.v!='--'?scCol(sc.v):'#888888';
-    ink(vc);doc.setFont('helvetica','bold');doc.setFontSize(20);doc.text(String(sc.v),bx+bw/2,y+17,{align:'center'});
-    doc.setFontSize(7);doc.setFont('helvetica','normal');ink('#888888');doc.text(sc.d,bx+bw/2,y+21,{align:'center'});
+  var cols3=[M, M+60, M+120];
+  var lbls3=['DATE','POSTCODE','COMBINED SCORE'];
+  var vals3=[today, pc, combined()+'/5  ('+scLbl(combined())+')'];
+  lbls3.forEach(function(l,i){
+    doc.setFontSize(7);doc.setFont('helvetica','bold');ink('#88AA88');
+    doc.text(l,cols3[i],y+5);
+    doc.setFontSize(8.5);doc.setFont('helvetica','bold');ink('#FFFFFF');
+    doc.text(vals3[i],cols3[i],y+10);
   });
-  y+=26;
+  y+=16;
 
-  // Macro section
-  if(s.macro_score_v2!=null){
-    doc.setFontSize(8);doc.setFont('helvetica','bold');ink('#888888');
-    doc.text('MACRO SCORE - DEMOGRAPHIC ANALYSIS',M,y);y+=2;
-    doc.setDrawColor(200,220,180);doc.setLineWidth(0.3);doc.line(M,y,W-M,y);y+=4;
-    // Reasoning
-    doc.setFontSize(9);doc.setFont('helvetica','normal');ink('#444444');
-    var rlines=doc.splitTextToSize(s.macro_score_v2_reasoning||'',CW);doc.text(rlines,M,y);y+=rlines.length*4+4;
-    // Signal table
-    var SIGS=[{key:'professionals',label:'Professionals',bench:66,sfx:'%',wt:'35%'},{key:'age_30_44',label:'Age 30-44',bench:40,sfx:'%',wt:'15%'},{key:'age_16_29',label:'Age 16-29',bench:26,sfx:'%',wt:'10%'},{key:'deprivation',label:'Deprivation',bench:4,sfx:'',wt:'25%'},{key:'private_rent',label:'Private rent',bench:39.8,sfx:'%',wt:'10%'},{key:'social_rent',label:'Social rent',bench:4.25,sfx:'%',wt:'5%',inv:true}];
-    var md={};try{md=JSON.parse(s.macro_score_data||'{}');}catch(e){}
-    // Table header
-    rect(M,y,CW,7,'#F5F4F0');
+  // ── SCORE BLOCKS ──
+  var bw=CW/3;
+  var scores=[
+    {l:'COMBINED',s2:'60% macro / 40% micro',v:combined(),d:scLbl(combined())},
+    {l:'MACRO SCORE',s2:'Demographics',v:String(s.macro_score_v2||'--'),d:'Catchment quality'},
+    {l:'MICRO SCORE',s2:'Footfall + street',v:String(s.micro_score_v2||'--'),d:'Walk-past potential'},
+  ];
+  scores.forEach(function(sc,i){
+    var bx=M+i*bw;
+    var vc=sc.v!='--'?scCol(sc.v):'#888888';
+    var vb=sc.v!='--'?scBg(sc.v):(i===0?'#F8F7F3':'#FFFFFF');
+    box(bx,y,bw,28,i===0?'#F5F4F0':'#FFFFFF');
+    doc.setDrawColor(220,218,212);doc.setLineWidth(0.3);doc.rect(bx,y,bw,28);
+    // Label
     doc.setFontSize(7);doc.setFont('helvetica','bold');ink('#888888');
-    doc.text('SIGNAL',M+3,y+5);doc.text('VALUE',M+70,y+5,{align:'right'});doc.text('BENCH',M+90,y+5,{align:'center'});doc.text('RATIO',M+115,y+5,{align:'center'});doc.text('STRENGTH',M+135,y+5);doc.text('WT',M+CW-2,y+5,{align:'right'});
-    y+=7;
-    SIGS.forEach(function(sig){
+    doc.text(sc.l,bx+bw/2,y+6,{align:'center'});
+    // Sub
+    doc.setFont('helvetica','normal');doc.setFontSize(7);ink('#AAAAAA');
+    doc.text(sc.s2,bx+bw/2,y+10,{align:'center'});
+    // Score value
+    ink(vc);doc.setFont('helvetica','bold');doc.setFontSize(24);
+    doc.text(sc.v,bx+bw/2,y+21,{align:'center'});
+    // Description
+    doc.setFontSize(7);doc.setFont('helvetica','normal');ink('#888888');
+    doc.text(sc.d,bx+bw/2,y+26,{align:'center'});
+  });
+  y+=32;
+
+  // ── MACRO SECTION ──
+  if(s.macro_score_v2!=null){
+    doc.setFontSize(8);doc.setFont('helvetica','bold');ink('#666666');
+    doc.text('MACRO SCORE \u2014 DEMOGRAPHIC ANALYSIS',M,y);
+    y+=2;hline(y,'#CCDDBB');y+=5;
+    // Reasoning
+    doc.setFontSize(9);doc.setFont('helvetica','normal');ink('#333333');
+    var rlines=doc.splitTextToSize(s.macro_score_v2_reasoning||'',CW);
+    doc.text(rlines,M,y);y+=rlines.length*4.5+5;
+    // Signal table header
+    box(M,y,CW,8,'#F0EFE9');
+    hline(y,'#E0DED8');hline(y+8,'#E0DED8');
+    doc.setFontSize(7);doc.setFont('helvetica','bold');ink('#777777');
+    doc.text('SIGNAL',M+3,y+5.5);
+    doc.text('VALUE',M+70,y+5.5,{align:'right'});
+    doc.text('BENCH',M+90,y+5.5,{align:'center'});
+    doc.text('RATIO',M+117,y+5.5,{align:'center'});
+    doc.text('STRENGTH',M+140,y+5.5);
+    doc.text('WT',M+CW-2,y+5.5,{align:'right'});
+    y+=8;
+    var SIGS=[
+      {key:'professionals',label:'Professionals',bench:66,sfx:'%',wt:'35%'},
+      {key:'age_30_44',label:'Age 30\u201344',bench:40,sfx:'%',wt:'15%'},
+      {key:'age_16_29',label:'Age 16\u201329',bench:26,sfx:'%',wt:'10%'},
+      {key:'deprivation',label:'Deprivation',bench:4,sfx:'',wt:'25%'},
+      {key:'private_rent',label:'Private rent',bench:39.8,sfx:'%',wt:'10%'},
+      {key:'social_rent',label:'Social rent',bench:4.25,sfx:'%',wt:'5%',inv:true},
+    ];
+    var md={};try{md=JSON.parse(s.macro_score_data||'{}');}catch(e){}
+    SIGS.forEach(function(sig,idx){
       var v=md[sig.key];if(v==null)return;
+      if(y>265){doc.addPage();y=20;}
       var ratio=sig.inv?(sig.bench/Math.max(v,0.1)):(v/sig.bench);
-      var rc=ratCol(ratio),rb=ratBg(ratio);
-      var rh=10;
-      doc.setDrawColor(235,232,226);doc.setLineWidth(0.2);doc.line(M,y+rh,W-M,y+rh);
-      doc.setFontSize(8.5);doc.setFont('helvetica','bold');ink('#1A1A18');doc.text(sig.label,M+3,y+6);
-      doc.setFontSize(7);doc.setFont('helvetica','normal');ink('#888888');doc.text('bench:'+sig.bench+sig.sfx,M+3,y+10);
-      doc.setFontSize(11);doc.setFont('helvetica','bold');ink('#1A1A18');doc.text(v.toFixed(1)+sig.sfx,M+70,y+7,{align:'right'});
-      doc.setFontSize(9);doc.setFont('helvetica','normal');ink('#888888');doc.text(String(sig.bench)+sig.sfx,M+90,y+7,{align:'center'});
+      var rc=rCol(ratio),rb=rBg(ratio);
+      var rh=12;
+      // Row bg alternating
+      if(idx%2===0)box(M,y,CW,rh,'#FAFAF8');
+      hline(y+rh,'#EEECEA');
+      // Signal name
+      doc.setFontSize(9);doc.setFont('helvetica','bold');ink('#1A1A18');
+      doc.text(sig.label,M+3,y+5);
+      doc.setFontSize(7);doc.setFont('helvetica','normal');ink('#999999');
+      var interp=sig.inv?(v<=sig.bench*0.8?'Good':v<=sig.bench*1.5?'Caution':'Weak'):(ratio>=1.0?'At benchmark':ratio>=0.75?'Near benchmark':'Below benchmark');
+      doc.text('Bench: '+sig.bench+sig.sfx+'  \u2022  '+interp,M+3,y+9.5);
+      // Value
+      doc.setFontSize(12);doc.setFont('helvetica','bold');ink('#1A1A18');
+      doc.text(v.toFixed(1)+sig.sfx,M+70,y+7,{align:'right'});
+      // Bench
+      doc.setFontSize(9);doc.setFont('helvetica','normal');ink('#999999');
+      doc.text(String(sig.bench)+sig.sfx,M+90,y+7,{align:'center'});
       // Ratio chip
-      fill(rb);doc.roundedRect(M+101,y+1.5,16,6,1,1,'F');
-      doc.setFontSize(8);doc.setFont('helvetica','bold');ink(rc);doc.text(ratio.toFixed(2)+'x',M+109,y+6,{align:'center'});
-      // Bar
-      fill('#E8E7E2');doc.rect(M+122,y+3,48,4,'F');
-      fill(rc);doc.rect(M+122,y+3,Math.min(ratio/1.5,1)*48,4,'F');
-      doc.setFontSize(7.5);doc.setFont('helvetica','normal');ink('#888888');doc.text(sig.wt,M+CW-2,y+6.5,{align:'right'});
+      rbox(M+101,y+2,16,7,1.5,rb);
+      doc.setFontSize(8);doc.setFont('helvetica','bold');ink(rc);
+      doc.text(ratio.toFixed(2)+'x',M+109,y+7,{align:'center'});
+      // Bar background
+      box(M+122,y+4,46,4,'#E8E7E2');
+      // Bar fill
+      box(M+122,y+4,Math.min(ratio/1.5,1)*46,4,rc);
+      // Weight
+      doc.setFontSize(8);doc.setFont('helvetica','normal');ink('#999999');
+      doc.text(sig.wt,M+CW-2,y+7,{align:'right'});
       y+=rh;
     });
-    y+=5;
+    y+=6;
   }
 
-  // Micro section
+  // ── MICRO SECTION ──
   if(s.micro_score_v2!=null){
-    if(y>200){doc.addPage();y=20;}
-    doc.setFontSize(8);doc.setFont('helvetica','bold');ink('#888888');
-    doc.text('MICRO SCORE - FOOTFALL & STREET CHARACTER',M,y);y+=2;
-    doc.setDrawColor(200,200,200);doc.setLineWidth(0.3);doc.line(M,y,W-M,y);y+=4;
+    if(y>185){doc.addPage();y=20;}
+    doc.setFontSize(8);doc.setFont('helvetica','bold');ink('#666666');
+    doc.text('MICRO SCORE \u2014 FOOTFALL & STREET CHARACTER',M,y);
+    y+=2;hline(y,'#CCCCDD');y+=5;
     var micd={};try{micd=JSON.parse(s.micro_score_data||'{}');}catch(e){}
-    var comps=[{l:'VOLUME',v:micd.vol_score||'--',sub:(micd.total_reviews||0).toLocaleString()+' reviews',wt:'30%'},{l:'INTENT',v:micd.intent_score||'--',sub:(micd.pos_count||0)+' pos venues',wt:'35%'},{l:'CHARACTER',v:micd.ai_score||'--',sub:'Claude',wt:'35%'}];
+    // Component blocks
+    var comps=[
+      {l:'VOLUME',v:micd.vol_score,s1:(micd.total_reviews||0).toLocaleString()+' reviews',s2:'100m radius',wt:'30%'},
+      {l:'INTENT',v:micd.intent_score,s1:(micd.pos_count||0)+' positive venues',s2:'leisure ratio',wt:'35%'},
+      {l:'CHARACTER',v:micd.ai_score,s1:'Claude AI',s2:'street assessment',wt:'35%'},
+    ];
+    var cbw=CW/3;
     comps.forEach(function(c,i){
-      var cx=M+i*(CW/3);var cw=CW/3;
-      var vc=c.v!='--'?scCol(c.v):'#888888';var vb=c.v!='--'?(parseFloat(c.v)>=4?'#F0F7E8':parseFloat(c.v)>=3?'#FEF3E2':'#FCEAEA'):'#F5F4F0';
-      rect(cx,y,cw,18,vb);doc.setDrawColor(220,218,212);doc.setLineWidth(0.3);doc.rect(cx,y,cw,18);
-      doc.setFontSize(7);doc.setFont('helvetica','bold');ink('#888888');doc.text(c.l,cx+cw/2,y+5,{align:'center'});doc.text('Wt:'+c.wt,cx+cw/2,y+17,{align:'center'});
-      ink(vc);doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text(String(c.v),cx+cw/2,y+13,{align:'center'});
-      doc.setFontSize(7);doc.setFont('helvetica','normal');ink('#888888');doc.text(c.sub,cx+cw/2,y+16,{align:'center'});
+      if(c.v==null)return;
+      var cx=M+i*cbw;
+      var vc=scCol(c.v),vb=scBg(c.v);
+      box(cx,y,cbw,24,vb);
+      doc.setDrawColor(220,218,212);doc.setLineWidth(0.3);doc.rect(cx,y,cbw,24);
+      doc.setFontSize(7);doc.setFont('helvetica','bold');ink('#777777');
+      doc.text(c.l+'  Wt:'+c.wt,cx+cbw/2,y+6,{align:'center'});
+      ink(vc);doc.setFont('helvetica','bold');doc.setFontSize(22);
+      doc.text(String(c.v),cx+cbw/2,y+16,{align:'center'});
+      doc.setFontSize(7.5);doc.setFont('helvetica','normal');ink('#777777');
+      doc.text(c.s1,cx+cbw/2,y+20,{align:'center'});
+      doc.text(c.s2,cx+cbw/2,y+23,{align:'center'});
     });
-    y+=22;
-    doc.setFontSize(9);doc.setFont('helvetica','normal');ink('#444444');
-    var mrlines=doc.splitTextToSize(s.micro_score_v2_reasoning||'',CW);doc.text(mrlines,M,y);y+=mrlines.length*4+4;
+    y+=28;
+    // Reasoning
+    doc.setFontSize(9);doc.setFont('helvetica','normal');ink('#333333');
+    var mrlines=doc.splitTextToSize(s.micro_score_v2_reasoning||'',CW);
+    doc.text(mrlines,M,y);y+=mrlines.length*4.5+5;
     // Venues
     var places=(micd.places||[]).slice().sort(function(a,b){return(b.user_ratings_total||0)-(a.user_ratings_total||0);});
     if(places.length){
-      var LT=new Set(['gym','fitness_center','spa','cafe','coffee_shop','bar','restaurant','food','bakery','clothing_store','pharmacy','yoga','pilates','sports_club']);
-      var NT=new Set(['car_repair','car_wash','gas_station','parking','storage','laundry','funeral_home']);
-      rect(M,y,CW,7,'#F5F4F0');
-      doc.setFontSize(7);doc.setFont('helvetica','bold');ink('#888888');
-      doc.text('VENUE (100M)',M+3,y+5);doc.text('REVIEWS',M+130,y+5,{align:'right'});doc.text('SIGNAL',M+CW-2,y+5,{align:'right'});
-      y+=7;
-      places.forEach(function(p){
-        if(y>272){doc.addPage();y=20;}
+      if(y>240){doc.addPage();y=20;}
+      var LT=new Set(['gym','fitness_center','spa','cafe','coffee_shop','bar','restaurant','food','bakery','clothing_store','pharmacy','yoga','pilates','sports_club','wine_bar','beauty_salon']);
+      var NT=new Set(['car_repair','car_wash','gas_station','parking','storage','laundry','funeral_home','casino']);
+      // Table header
+      box(M,y,CW,8,'#F0EFE9');hline(y,'#E0DED8');hline(y+8,'#E0DED8');
+      doc.setFontSize(7);doc.setFont('helvetica','bold');ink('#777777');
+      doc.text('VENUE (100M RADIUS)',M+3,y+5.5);
+      doc.text('REVIEWS',M+130,y+5.5,{align:'right'});
+      doc.text('SIGNAL',M+CW-2,y+5.5,{align:'right'});
+      y+=8;
+      places.forEach(function(p,pi){
+        if(y>270){doc.addPage();y=20;}
         var t=new Set(p.types||[]);
         var cls=[...t].some(function(x){return NT.has(x);})?'neg':[...t].some(function(x){return LT.has(x);})?'pos':'neu';
-        var cc=cls==='pos'?'#3B6D11':cls==='neg'?'#8B2020':'#888888';
-        var cb=cls==='pos'?'#EAF0E2':cls==='neg'?'#FCEAEA':'#F5F4F0';
-        doc.setDrawColor(235,232,226);doc.setLineWidth(0.2);doc.line(M,y+8,W-M,y+8);
-        doc.setFontSize(8.5);doc.setFont('helvetica','bold');ink('#1A1A18');
-        doc.text(p.name||'',M+3,y+5.5,{maxWidth:110});
-        doc.setFontSize(8.5);doc.setFont('helvetica','normal');ink('#1A1A18');
-        doc.text(String((p.user_ratings_total||0).toLocaleString()),M+130,y+5.5,{align:'right'});
-        fill(cb);doc.roundedRect(M+136,y+1,14,6,1,1,'F');
-        doc.setFontSize(7);doc.setFont('helvetica','bold');ink(cc);doc.text(cls.toUpperCase(),M+143,y+5.5,{align:'center'});
-        y+=8;
+        var cc=cls==='pos'?'#3B6D11':cls==='neg'?'#8B2020':'#777777';
+        var cb=cls==='pos'?'#EAF0E2':cls==='neg'?'#FCEAEA':'#F0EFE9';
+        var rh=9;
+        if(pi%2===0)box(M,y,CW,rh,'#FAFAF8');
+        hline(y+rh,'#EEECEA');
+        doc.setFontSize(9);doc.setFont('helvetica','bold');ink('#1A1A18');
+        doc.text(p.name||'',M+3,y+6,{maxWidth:118});
+        doc.setFont('helvetica','normal');
+        doc.text(String((p.user_ratings_total||0).toLocaleString()),M+130,y+6,{align:'right'});
+        rbox(M+136,y+1.5,14,6,1.5,cb);
+        doc.setFontSize(7);doc.setFont('helvetica','bold');ink(cc);
+        doc.text(cls.toUpperCase(),M+143,y+6,{align:'center'});
+        y+=rh;
       });
     }
   }
 
-  // Footer
-  doc.setDrawColor(220,218,212);doc.setLineWidth(0.3);doc.line(M,y+3,W-M,y+3);
-  doc.setFontSize(7.5);doc.setFont('helvetica','normal');ink('#888888');
-  doc.text('SCRATCH GOLF CLUB - CONFIDENTIAL',M,y+8);
-  doc.text('Generated '+today,W-M,y+8,{align:'right'});
+  // ── FOOTER ──
+  if(y>265){doc.addPage();y=265;}
+  y+=4;hline(y,'#CCCCCC');y+=5;
+  doc.setFontSize(7.5);doc.setFont('helvetica','normal');ink('#999999');
+  doc.text('Scratch Golf Club \u2014 Confidential',M,y);
+  doc.text('Generated '+today,PW-M,y,{align:'right'});
 
   var fname=(s.name||s.address.split(',')[0]).replace(/[^a-zA-Z0-9 ]/g,'').replace(/\s+/g,'-').toLowerCase();
   doc.save(fname+'-location-report.pdf');

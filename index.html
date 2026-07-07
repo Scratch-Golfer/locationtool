@@ -279,6 +279,7 @@ textarea:focus{border-color:#3B6D11;}
         <button class="back-btn" id="btn-back">&#8592; Back</button>
         <div class="dv-title" id="dv-title"></div>
         <span class="badge" id="dv-badge"></span>
+        <button class="ghost-btn" id="btn-dl-report" onclick="downloadReport()" style="margin-left:auto;font-size:11px;padding:4px 12px;color:#3B6D11;border-color:#3B6D11">&#11015; Report</button>
       </div>
 
       <!-- Property summary (all stages) -->
@@ -562,6 +563,7 @@ textarea:focus{border-color:#3B6D11;}
     </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 var SUPABASE_URL='https://mfhcqxquzjknzifjebvu.supabase.co';
 var SUPABASE_ANON_KEY='sb_publishable_HYuBeJEs2OuKiIUOym5Fbw_55TfnxAH';

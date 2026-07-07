@@ -215,7 +215,7 @@ textarea:focus{border-color:#3B6D11;}
       <div class="dv-card">
         <div class="sec-lbl">Property</div>
         <div class="dgrid">
-          <div><div class="df-lbl">Address</div><div class="df-val" id="dv-addr"></div></div>
+          <div><div class="df-lbl">Address</div><div class="df-val" id="dv-addr"></div><button class="ghost-btn" style="font-size:11px;margin-top:4px;padding:3px 8px" onclick="editAddress()">Edit</button></div></div>
           <div><div class="df-lbl">Ceiling 3m+</div><div class="df-val" id="dv-ceil"></div></div>
           <div><div class="df-lbl">Floor area</div><div class="df-val" id="dv-sqft"></div></div>
           <div><div class="df-lbl">Rent (p.a.)</div><div class="df-val" id="dv-rent"></div></div>
@@ -378,64 +378,16 @@ textarea:focus{border-color:#3B6D11;}
         <div class="dv-card">
           <div class="sec-lbl">Site coordinates</div>
           <label class="field-lbl">Coordinates (from Google Maps)</label>
-          <div class="field-note">Right-click the entrance on Google Maps and paste the coordinates here</div>
-          <input type="text" id="inp-coords" placeholder="e.g. 51deg28'26.8N 0deg12'00.4W" style="margin-bottom:6px;">
+          <div class="field-note">Right-click the entrance on Google Maps, copy coordinates, paste here</div>
+          <input type="text" id="inp-coords" placeholder="e.g. 51.4489, -0.1484" style="margin-bottom:6px;">
           <div id="coords-preview" style="font-size:11px;font-family:monospace;margin-top:4px;display:none;"></div>
           <div style="margin-top:10px;">
             <button class="ghost-btn" id="btn-sv-coords">Save coordinates</button>
             <span id="coords-ok" style="font-size:12px;color:#3B6D11;margin-left:8px;display:none;">Saved</span>
           </div>
         </div>
-        <div class="dv-card">
-          <div class="sec-lbl">Macro location score</div>
-          <p style="font-size:12px;color:#666;margin-bottom:1rem;line-height:1.6;">Residential concentration of 25&ndash;40 year olds with disposable income within a 15-min walk/cycle. Scored 1&ndash;4.</p>
-          <div class="score-section">
-            <div class="score-section-title"><span>AI score</span><button class="ai-btn" id="btn-macro-ai">Generate AI score</button></div>
-            <div id="macro-ai-loading" style="display:none;font-size:13px;color:#888;padding:8px 0;"><span class="spin"></span>Analysing neighbourhood&hellip;</div>
-            <div id="macro-ai-result" style="display:none;">
-              <div class="score-display"><div class="score-bubble" id="macro-ai-bubble">&mdash;</div><div style="font-size:12px;color:#666;">out of 4</div></div>
-              <div class="score-reasoning" id="macro-ai-reasoning"></div>
-            </div>
-          </div>
-          <div class="score-section">
-            <div class="score-section-title"><span>Your score</span></div>
-            <div class="score-btns" id="macro-h-btns">
-              <button class="sbtn" data-v="1">1</button><button class="sbtn" data-v="2">2</button><button class="sbtn" data-v="3">3</button><button class="sbtn" data-v="4">4</button>
-            </div>
-            <div class="score-desc" id="macro-h-desc">Select a score above.</div>
-            <span id="macro-h-ok" style="font-size:12px;color:#3B6D11;display:none;margin-top:6px;display:block;">Saved</span>
-          </div>
-        </div>
-        <div class="dv-card">
-          <div class="sec-lbl">Micro location score</div>
-          <p style="font-size:12px;color:#666;margin-bottom:1rem;line-height:1.6;">Street type, visibility and accessibility. Scored 1&ndash;4.</p>
-          <div class="score-section">
-            <div class="score-section-title"><span>AI score</span><button class="ai-btn" id="btn-micro-ai">Generate AI score</button></div>
-            <div id="micro-ai-loading" style="display:none;font-size:13px;color:#888;padding:8px 0;"><span class="spin"></span>Assessing micro-location&hellip;</div>
-            <div id="micro-ai-result" style="display:none;">
-              <div class="score-display"><div class="score-bubble" id="micro-ai-bubble">&mdash;</div><div style="font-size:12px;color:#666;">out of 4</div></div>
-              <div class="score-reasoning" id="micro-ai-reasoning"></div>
-            </div>
-          </div>
-          <div class="score-section">
-            <div class="score-section-title"><span>Your score</span></div>
-            <div class="score-btns" id="micro-h-btns">
-              <button class="sbtn" data-v="1">1</button><button class="sbtn" data-v="2">2</button><button class="sbtn" data-v="3">3</button><button class="sbtn" data-v="4">4</button>
-            </div>
-            <div class="score-desc" id="micro-h-desc">Select a score above.</div>
-            <span id="micro-h-ok" style="font-size:12px;color:#3B6D11;display:none;margin-top:6px;display:block;">Saved</span>
-          </div>
-        </div>
-        <div id="blended-wrap" style="display:none;">
-          <div class="blended-box">
-            <div><div class="blended-lbl">Blended location score</div><div class="blended-score" id="blended-val">&mdash;</div></div>
-            <div><div class="blended-sub" id="blended-breakdown"></div></div>
-          </div>
-        </div>
       </div>
 
-
-      <!-- Stage 3: Site viewing -->
       <div id="sec-s3" style="display:none;">
         <div class="dv-card">
           <div class="sec-lbl">Site viewing</div>
@@ -535,7 +487,20 @@ textarea:focus{border-color:#3B6D11;}
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+function editAddress(){
+  var s=sites.find(function(x){return x.id===curId;});if(!s)return;
+  var newAddr=prompt('Edit address:',s.address);
+  if(newAddr&&newAddr.trim()&&newAddr!==s.address){
+    patchSite(curId,{address:newAddr.trim()},function(){
+      g('dv-title').textContent=newAddr.split(',')[0];
+      g('dv-addr').textContent=newAddr;
+      showV2Card(sites.find(function(x){return x.id===curId;}));
+    });
+  }
+}
+
+</script>
 <script>
 var SUPABASE_URL='https://mfhcqxquzjknzifjebvu.supabase.co';
 var SUPABASE_ANON_KEY='sb_publishable_HYuBeJEs2OuKiIUOym5Fbw_55TfnxAH';
@@ -594,8 +559,8 @@ function updateCPB(rent,sc,sqft,n){
 }
 function updateBlended(s){
   var b=blended(s);
-  if(b){g('blended-val').textContent=b.score+'/4';g('blended-breakdown').textContent=b.breakdown;g('blended-wrap').style.display='block';}
-  else{g('blended-wrap').style.display='none';}
+  if(b){(g('blended-val')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).textContent=b.score+'/4';(g('blended-breakdown')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).textContent=b.breakdown;(g('blended-wrap')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).style.display='block';}
+  else{(g('blended-wrap')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).style.display='none';}
 }
 function parseDMS(str){
   var m=str.trim().match(/(\d+)[^\d]+(\d+)[^\d]+([\d.]+)[^\d.]+([NS])[^0-9]+(\d+)[^\d]+(\d+)[^\d]+([\d.]+)[^\d.]+([EW])/i);
@@ -697,12 +662,12 @@ function openDetail(id){
   showV2Card(s); if(stage===2){
     if(s.lat&&s.lng)g('inp-coords').value=s.lat+', '+s.lng;else g('inp-coords').value='';
     g('coords-preview').style.display='none';
-    if(s.macro_ai_score!=null){g('macro-ai-bubble').textContent=s.macro_ai_score;g('macro-ai-bubble').className='score-bubble '+scClass(s.macro_ai_score);g('macro-ai-reasoning').textContent=s.macro_ai_reasoning||'';g('macro-ai-result').style.display='block';}else{g('macro-ai-result').style.display='none';}
-    var mhb=g('macro-h-btns').querySelectorAll('.sbtn');mhb.forEach(function(b){b.classList.remove('on');});
-    if(s.macro_human_score!=null){mhb.forEach(function(b){if(+b.dataset.v===s.macro_human_score)b.classList.add('on');});g('macro-h-desc').innerHTML=MACRO_DESCS[s.macro_human_score]||'';}else{g('macro-h-desc').textContent='Select a score above.';}
-    if(s.micro_ai_score!=null){g('micro-ai-bubble').textContent=s.micro_ai_score;g('micro-ai-bubble').className='score-bubble '+scClass(s.micro_ai_score);g('micro-ai-reasoning').textContent=s.micro_ai_reasoning||'';g('micro-ai-result').style.display='block';}else{g('micro-ai-result').style.display='none';}
-    var mihb=g('micro-h-btns').querySelectorAll('.sbtn');mihb.forEach(function(b){b.classList.remove('on');});
-    if(s.micro_human_score!=null){mihb.forEach(function(b){if(+b.dataset.v===s.micro_human_score)b.classList.add('on');});g('micro-h-desc').innerHTML=MICRO_DESCS[s.micro_human_score]||'';}else{g('micro-h-desc').textContent='Select a score above.';}
+    if(s.macro_ai_score!=null){(g('macro-ai-bubble')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).textContent=s.macro_ai_score;(g('macro-ai-bubble')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).className='score-bubble '+scClass(s.macro_ai_score);(g('macro-ai-reasoning')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).textContent=s.macro_ai_reasoning||'';(g('macro-ai-result')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).style.display='block';}else{(g('macro-ai-result')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).style.display='none';}
+    var mhb=(g('macro-h-btns')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).querySelectorAll('.sbtn');mhb.forEach(function(b){b.classList.remove('on');});
+    if(s.macro_human_score!=null){mhb.forEach(function(b){if(+b.dataset.v===s.macro_human_score)b.classList.add('on');});(g('macro-h-desc')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).innerHTML=MACRO_DESCS[s.macro_human_score]||'';}else{(g('macro-h-desc')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).textContent='Select a score above.';}
+    if(s.micro_ai_score!=null){(g('micro-ai-bubble')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).textContent=s.micro_ai_score;(g('micro-ai-bubble')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).className='score-bubble '+scClass(s.micro_ai_score);(g('micro-ai-reasoning')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).textContent=s.micro_ai_reasoning||'';(g('micro-ai-result')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).style.display='block';}else{(g('micro-ai-result')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).style.display='none';}
+    var mihb=(g('micro-h-btns')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).querySelectorAll('.sbtn');mihb.forEach(function(b){b.classList.remove('on');});
+    if(s.micro_human_score!=null){mihb.forEach(function(b){if(+b.dataset.v===s.micro_human_score)b.classList.add('on');});(g('micro-h-desc')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).innerHTML=MICRO_DESCS[s.micro_human_score]||'';}else{(g('micro-h-desc')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).textContent='Select a score above.';}
     updateBlended(s);
   }
   if(stage===4){
@@ -887,34 +852,34 @@ async function callClaude(prompt,lat,lng){
 g('btn-macro-ai').addEventListener('click',async function(){
   if(!curId)return;var s=sites.find(function(x){return x.id===curId;});if(!s)return;
   if(!s.lat||!s.lng){alert('Save coordinates first.');return;}
-  g('macro-ai-loading').style.display='block';g('macro-ai-result').style.display='none';this.disabled=true;
+  (g('macro-ai-loading')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).style.display='block';(g('macro-ai-result')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).style.display='none';this.disabled=true;
   try{
     var prompt='Score this UK location for a membership-based indoor golf simulator. Target: 25-40 year olds with disposable income. Coordinates: '+s.lat+','+s.lng+'. Score 1-4 on residential concentration of target demographic within 15-min walk: 1=wrong demographic, 2=sparse professionals, 3=moderate (e.g. Wimbledon/Chiswick), 4=strong concentration (e.g. Clapham/Fulham/Islington/Balham/Hackney/Battersea). Reply ONLY with valid JSON: {"score":3,"reasoning":"2-3 sentences"}';
     var result=await callClaude(prompt,s.lat,s.lng);
     var score=Math.min(4,Math.max(1,Math.round(result.score)));
     var reasoning=result.reasoning+(result.location_context?' ['+result.location_context+']':'');
     await patchSite(curId,{macro_ai_score:score,macro_ai_reasoning:reasoning});
-    g('macro-ai-bubble').textContent=score;g('macro-ai-bubble').className='score-bubble '+scClass(score);
-    g('macro-ai-reasoning').textContent=reasoning;g('macro-ai-result').style.display='block';
+    (g('macro-ai-bubble')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).textContent=score;(g('macro-ai-bubble')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).className='score-bubble '+scClass(score);
+    (g('macro-ai-reasoning')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).textContent=reasoning;(g('macro-ai-result')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).style.display='block';
     var upd=sites.find(function(x){return x.id===curId;});if(upd)updateBlended(upd);
   }catch(e){alert('AI scoring failed: '+e.message);}
-  finally{g('macro-ai-loading').style.display='none';this.disabled=false;}
+  finally{(g('macro-ai-loading')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).style.display='none';this.disabled=false;}
 });
 g('btn-micro-ai').addEventListener('click',async function(){
   if(!curId)return;var s=sites.find(function(x){return x.id===curId;});if(!s)return;
   if(!s.lat||!s.lng){alert('Save coordinates first.');return;}
-  g('micro-ai-loading').style.display='block';g('micro-ai-result').style.display='none';this.disabled=true;
+  (g('micro-ai-loading')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).style.display='block';(g('micro-ai-result')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).style.display='none';this.disabled=true;
   try{
     var prompt='Score this specific UK site for a membership-based indoor golf simulator. Address: '+s.address+'. Coords: '+s.lat+','+s.lng+'. Score 1-4: 1=poor street/hard to find/unsafe at night, 2=side street/low traffic/limited visibility, 3=just off a high street/findable/safe, 4=on a high street or prominent road/high visibility/safe at night. Reply ONLY with valid JSON: {"score":3,"reasoning":"2-3 sentences"}';
     var result=await callClaude(prompt,s.lat,s.lng);
     var score=Math.min(4,Math.max(1,Math.round(result.score)));
     var reasoning=result.reasoning+(result.location_context?' ['+result.location_context+']':'');
     await patchSite(curId,{micro_ai_score:score,micro_ai_reasoning:reasoning});
-    g('micro-ai-bubble').textContent=score;g('micro-ai-bubble').className='score-bubble '+scClass(score);
-    g('micro-ai-reasoning').textContent=reasoning;g('micro-ai-result').style.display='block';
+    (g('micro-ai-bubble')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).textContent=score;(g('micro-ai-bubble')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).className='score-bubble '+scClass(score);
+    (g('micro-ai-reasoning')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).textContent=reasoning;(g('micro-ai-result')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).style.display='block';
     var upd=sites.find(function(x){return x.id===curId;});if(upd)updateBlended(upd);
   }catch(e){alert('AI scoring failed: '+e.message);}
-  finally{g('micro-ai-loading').style.display='none';this.disabled=false;}
+  finally{(g('micro-ai-loading')||{style:{},textContent:'',className:'',querySelectorAll:function(){return[];}}).style.display='none';this.disabled=false;}
 });
 
 // Stage advance/reject
@@ -1172,12 +1137,17 @@ async function runV2Micro(){
   var steps=['Locating address','Pulling nearby venues','Assessing street character'];
   setV2Progress(steps,0,'run','');
   try{
-    var geoRes=await fetch('https://maps.googleapis.com/maps/api/geocode/json?address='+encodeURIComponent(s.address)+'&region=gb&key='+GOOGLE_KEY);
-    var geoData=await geoRes.json();
-    if(geoData.status!=='OK'||!geoData.results.length)throw new Error('Address not found');
-    var lat=geoData.results[0].geometry.location.lat;
-    var lng=geoData.results[0].geometry.location.lng;
-    var formatted=geoData.results[0].formatted_address;
+    var lat,lng,formatted;
+    if(s.lat&&s.lng){
+      lat=parseFloat(s.lat);lng=parseFloat(s.lng);formatted=s.address;
+      setV2Progress(steps,0,'done','Using saved coordinates ('+lat.toFixed(4)+', '+lng.toFixed(4)+')');
+    } else {
+      var geoRes=await fetch('https://maps.googleapis.com/maps/api/geocode/json?address='+encodeURIComponent(s.address)+'&region=gb&key='+GOOGLE_KEY);
+      var geoData=await geoRes.json();
+      if(geoData.status!=='OK'||!geoData.results.length)throw new Error('Address not found — add coordinates in Stage 2');
+      lat=geoData.results[0].geometry.location.lat;lng=geoData.results[0].geometry.location.lng;
+      formatted=geoData.results[0].formatted_address;
+    }
     setV2Progress(steps,1,'run','');
     var placesRes=await fetch('https://places.googleapis.com/v1/places:searchNearby',{
       method:'POST',

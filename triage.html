@@ -220,44 +220,44 @@ var db=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
 function daysAgo(n){var d=new Date();d.setDate(d.getDate()-n);return d.toISOString().split('T')[0];}
 
-var RAW=[
-  {id:'89489016',addr:'Broadway Parade',area:'London N8',postcode:'N8',size:670,price:2500,agent:'Paul Simon Seaton',source:'rightmove',url:'https://www.rightmove.co.uk/properties/89489016#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'152577545',addr:'Green Lanes',area:'Winchmore Hill',postcode:'N21 3RX',size:729,price:1071,agent:'Mi Commercial',source:'rightmove',url:'https://www.rightmove.co.uk/properties/152577545#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'168069659',addr:'29 Sternhold Avenue',area:'Streatham Hill SW2 4PA',postcode:'SW2 4PA',size:1125,price:2292,agent:'John D Wood',source:'rightmove',url:'https://www.rightmove.co.uk/properties/168069659#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'174997007',addr:'165 Haverstock Hill',area:'Belsize Park NW3 4QT',postcode:'NW3 4QT',size:1492,price:6250,agent:'John D Wood',source:'rightmove',url:'https://www.rightmove.co.uk/properties/174997007#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'88840593',addr:'7 Lambarde Square',area:'Greenwich SE10 9GB',postcode:'SE10 9GB',size:2030,price:4167,agent:'John D Wood',source:'rightmove',url:'https://www.rightmove.co.uk/properties/88840593#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'151500344',addr:'On The Gantry, QEOP',area:'Hackney Wick E15 2HB',postcode:'E15 2HB',size:760,price:180,agent:'Fyfe Mcdade',source:'rightmove',url:'https://www.rightmove.co.uk/properties/151500344#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'170029424',addr:'Falcon Road',area:'Battersea SW11',postcode:'SW11 2LX',size:4500,price:925,agent:'Workzhouse Ltd',source:'rightmove',url:'https://www.rightmove.co.uk/properties/170029424#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'136277936',addr:'Parkhaus, 1a Downs Road',area:'Hackney E5 8QJ',postcode:'E5 8QJ',size:1421,price:833,agent:'BELCOR',source:'rightmove',url:'https://www.rightmove.co.uk/properties/136277936#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'154279805',addr:'Netil House, Westgate St',area:'London Fields E8 3RL',postcode:'E8 3RL',size:1560,price:250,agent:'Fyfe Mcdade',source:'rightmove',url:'https://www.rightmove.co.uk/properties/154279805#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'149367803',addr:'415 Wick Lane',area:'Hackney Wick E3 2JG',postcode:'E3 2JG',size:849,price:1030,agent:'Fyfe Mcdade',source:'rightmove',url:'https://www.rightmove.co.uk/properties/149367803#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'149092247',addr:'Smokehaus, 16-22 Bayford St',area:'Hackney E8 3SE',postcode:'E8 3SE',size:2363,price:2083,agent:'BELCOR',source:'rightmove',url:'https://www.rightmove.co.uk/properties/149092247#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'165383621',addr:'Edgware Road',area:'London NW2',postcode:'NW2 6LH',size:900,price:730,agent:'Storex Self Storage',source:'rightmove',url:'https://www.rightmove.co.uk/properties/165383621#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'88053153',addr:'Wickside, 3-13 Hepscott Rd',area:'Hackney Wick E9 5HJ',postcode:'E9 5HJ',size:27297,price:0,agent:'Strettons',source:'rightmove',url:'https://www.rightmove.co.uk/properties/88053153#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'754397468951777',addr:'High Street',area:'South Norwood SE25',postcode:'SE25 5QA',size:948,price:1667,agent:'HNF Property',source:'rightmove',url:'https://www.rightmove.co.uk/properties/754397468951777#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'151667840',addr:'Fish Island Village, 13 Rookwood Way',area:'Bow E3 2XT',postcode:'E3 2XT',size:2024,price:433,agent:'Fyfe Mcdade',source:'rightmove',url:'https://www.rightmove.co.uk/properties/151667840#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'739721939224513',addr:'16 Hale Lane',area:'Mill Hill NW7 3NX',postcode:'NW7 3NX',size:1022,price:0,agent:'Business Property Solutions',source:'rightmove',url:'https://www.rightmove.co.uk/properties/739721939224513#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'755877985059136',addr:'4-10 North Road',area:'Islington N1',postcode:'N1 9GJ',size:17177,price:2320,agent:'Tradestars',source:'rightmove',url:'https://www.rightmove.co.uk/properties/755877985059136#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'146717450',addr:'Meard Street',area:'Soho W1F',postcode:'W1F 0EW',size:795,price:4583,agent:'Grosvenor Dean',source:'rightmove',url:'https://www.rightmove.co.uk/properties/146717450#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'698587539846753',addr:'3 Tottenham Street',area:'Fitzrovia W1T 2AF',postcode:'W1T 2AF',size:1045,price:5833,agent:'Sanderson Weatherall',source:'rightmove',url:'https://www.rightmove.co.uk/properties/698587539846753#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'173613401',addr:'Commercial Unit 1, Halcyon House',area:'Hither Green SE13',postcode:'SE13 6JH',size:861,price:1167,agent:'Acorn Commercial',source:'rightmove',url:'https://www.rightmove.co.uk/properties/173613401#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'173613404',addr:'Commercial Unit 2, Halcyon House',area:'Hither Green SE13',postcode:'SE13 6JH',size:861,price:1417,agent:'Acorn Commercial',source:'rightmove',url:'https://www.rightmove.co.uk/properties/173613404#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'89345409',addr:'469-471 Wandsworth Road',area:'Stockwell SW8 4NX',postcode:'SW8 4NX',size:963,price:1458,agent:'Avison Young',source:'rightmove',url:'https://www.rightmove.co.uk/properties/89345409#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'89456913',addr:'East India Dock Road',area:'Poplar E14',postcode:'E14 0LQ',size:500,price:1833,agent:'City & Urban',source:'rightmove',url:'https://www.rightmove.co.uk/properties/89456913#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'754397464839872',addr:'Brixton Hill',area:'Brixton SW2',postcode:'SW2 1JZ',size:501,price:1250,agent:'HNF Property',source:'rightmove',url:'https://www.rightmove.co.uk/properties/754397464839872#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'733362304765232',addr:'Unit 2, 12 Heath Street',area:'Hampstead NW3 6TE',postcode:'NW3 6TE',size:505,price:3167,agent:'Forest Real Estate',source:'rightmove',url:'https://www.rightmove.co.uk/properties/733362304765232#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'88346643',addr:'175 Hoe Street',area:'Walthamstow E17 3AP',postcode:'E17 3AP',size:506,price:2083,agent:'Harston & Co',source:'rightmove',url:'https://www.rightmove.co.uk/properties/88346643#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'745552753658369',addr:'187 Kings Cross Road',area:'Kings Cross WC1X 9DB',postcode:'WC1X 9DB',size:529,price:2292,agent:'LDG Commercial',source:'rightmove',url:'https://www.rightmove.co.uk/properties/745552753658369#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'89487858',addr:'Unit A&B, 225 Marsh Wall',area:'South Quay E14 9FW',postcode:'E14 9FW',size:1264,price:0,agent:'Hindwoods',source:'rightmove',url:'https://www.rightmove.co.uk/properties/89487858#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'172666115',addr:'72 Leather Lane',area:'Clerkenwell EC1N 7TR',postcode:'EC1N 7TR',size:531,price:3333,agent:'Pearl & Coutts',source:'rightmove',url:'https://www.rightmove.co.uk/properties/172666115#/?channel=COM_LET',date:daysAgo(0)},
-  {id:'LN001',addr:'17 Old Street',area:'Shoreditch EC1V 9HL',postcode:'EC1V 9HL',size:1800,price:5200,agent:'Knight Frank',source:'loopnet',url:'https://www.loopnet.co.uk/listing/17-old-street',date:daysAgo(2)},
-  {id:'AG001',addr:'Unit 4, Heathmans Road',area:'Parsons Green SW6 4TJ',postcode:'SW6 4TJ',size:2100,price:7500,agent:'Knight Frank',source:'agent',url:'',date:daysAgo(5)},
-];
+var listings=[];
+var listingsLoaded=false;
 
-var listings=RAW.map(function(r){
-  return Object.assign({},r,{macro:null,micro:null,combined:null,macro_reasoning:'',micro_reasoning:'',status:'inbox',selected:false,lat:null,lng:null});
-});
-
+async function loadListings(){
+  var loadingEl=document.getElementById('loading-msg');
+  if(loadingEl)loadingEl.style.display='block';
+  var {data,error}=await db.from('listings').select('*').order('submitted_at',{ascending:false});
+  if(error){console.error('Error loading listings:',error);if(loadingEl)loadingEl.textContent='Error loading listings: '+error.message;return;}
+  listings=(data||[]).map(function(r){
+    return {
+      id:r.id,
+      addr:r.address,
+      area:'',
+      postcode:(r.address||'').match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i)?((r.address||'').match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i)[0]):'',
+      size:r.sqft,
+      price:r.rent,
+      agent:r.agency_name||'',
+      source:r.source||'rightmove',
+      url:r.listing_url||'',
+      date:r.submitted_at?r.submitted_at.split('T')[0]:'',
+      notes:r.notes||'',
+      macro:r.macro_score_v2,
+      micro:r.micro_score_v2,
+      combined:r.macro_score_v2!=null&&r.micro_score_v2!=null?(r.macro_score_v2*0.6+r.micro_score_v2*0.4).toFixed(1):r.macro_score_v2||r.micro_score_v2||null,
+      macro_reasoning:r.macro_score_v2_reasoning||'',
+      micro_reasoning:r.micro_score_v2_reasoning||'',
+      macro_data:r.macro_score_data||null,
+      micro_data:r.micro_score_data||null,
+      status:'inbox',
+      selected:false,
+      lat:null,lng:null,
+      _dbId:r.id
+    };
+  });
+  listingsLoaded=true;
+  if(loadingEl)loadingEl.style.display='none';
+  loadListings();
+}
 var curTab='inbox',srcFilter='all',extraFilters={scored:false,hi:false};
 var sortCol='date',sortDir='desc';
 var viewMode='list';
@@ -353,25 +353,31 @@ function cancelScoring(){scoringCancelled=true;}
 
 // ACCEPT → INSERT INTO SUPABASE PROSPECTING
 async function sendToProspecting(l){
-  var addr=l.addr+(l.area?', '+l.area:'');
-  var agentParts=(l.agent||'').split(' ');
+  var addr=l.addr+(l.area&&!l.addr.includes(l.area)?', '+l.area:'');
+  // Insert into pipeline sites table
   var r=await db.from('sites').insert({
     address:addr,
     agent_name:l.agent||null,
-    agency_name:null,
-    notes:'Triage score: '+(l.combined?l.combined+'/4':' not scored')+'. Source: '+l.source+(l.macro_reasoning?'\nMacro: '+l.macro_reasoning:'')+(l.micro_reasoning?'\nMicro: '+l.micro_reasoning:''),
+    agency_name:l.agent||null,
     listing_url:l.url||null,
-    source:l.source||null,
+    source:l.source||'Rightmove',
     stage:0,
     status:'active',
     ceiling_ok:false,
     sqft:l.size||null,
-    macro_ai_score:l.macro||null,
-    macro_ai_reasoning:l.macro_reasoning||null,
-    micro_ai_score:l.micro||null,
-    micro_ai_reasoning:l.micro_reasoning||null
+    rent:l.price||null,
+    macro_score_v2:l.macro||null,
+    macro_score_v2_reasoning:l.macro_reasoning||null,
+    macro_score_data:l.macro_data||null,
+    micro_score_v2:l.micro||null,
+    micro_score_v2_reasoning:l.micro_reasoning||null,
+    micro_score_data:l.micro_data||null,
+    notes:l.notes||null,
+    submitted_at:new Date().toISOString()
   });
   if(r.error)throw new Error(r.error.message);
+  // Delete from listings table
+  if(l._dbId){await db.from('listings').delete().eq('id',l._dbId);}
   return true;
 }
 

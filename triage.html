@@ -366,6 +366,16 @@ function recalcFromStoredData(storedJson){
   }catch(e){return null;}
 }
 
+
+function updateSqftLabel(){
+  var mn=parseInt(document.getElementById('sqft-min').value)||0;
+  var mx=parseInt(document.getElementById('sqft-max').value)||5000;
+  // Ensure min <= max
+  if(mn>mx){document.getElementById('sqft-min').value=mx;mn=mx;}
+  document.getElementById('sqft-min-lbl').textContent=mn?mn.toLocaleString():'0';
+  document.getElementById('sqft-max-lbl').textContent=mx>=5000?'any':mx.toLocaleString();
+}
+
 function gss(r){for(var i=0;i<THR.length;i++)if(r>=THR[i][0])return THR[i][1];return 0.05;}
 function cmw(d){var W=0;Object.keys(WEIGHTS).forEach(function(k){var v=d[k];if(v==null)return;var b=BENCH[k];W+=WEIGHTS[k]*gss(k!=='social_rent'?(v/b):(b/Math.max(v,0.1)));});return W;}
 
@@ -494,13 +504,15 @@ async function sendToProspecting(l){
 
 // FILTER + SORT
 function filtered(){
-  var sqftMin=parseInt((document.getElementById('sqft-filter')||{value:0}).value||0)||0;
+
   return listings.filter(function(l){
     if(l.status!==curTab)return false;
     if(srcFilter!=='all'&&l.source!==srcFilter)return false;
     if(extraFilters.scored&&l.combined===null)return false;
     if(extraFilters.hi&&(l.combined===null||l.combined<3.5))return false;
-    if(sqftMin&&l.size&&l.size<sqftMin)return false;
+    var sqftMin=parseInt((document.getElementById('sqft-min')||{value:0}).value)||0;
+    var sqftMax=parseInt((document.getElementById('sqft-max')||{value:5000}).value)||5000;
+    if(l.size&&(l.size<sqftMin||l.size>sqftMax))return false;
     return true;
   });
 }

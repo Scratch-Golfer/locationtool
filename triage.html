@@ -709,7 +709,7 @@ function showDetail(id){
   // Show MSOA boundary on map if we have the code AND we're already in map view
   var msoaCode=null;
   try{msoaCode=l.msoa_code||(JSON.parse(l.macro_data||'{}').msoa_code)||null;}catch(e){}
-  if(msoaCode&&mapObj&&curView==='map'){
+  if(msoaCode&&mapObj&&viewMode==='map'){
     showMSOABoundary(msoaCode);
     if(l.lat&&l.lng)mapObj.flyTo([l.lat,l.lng],15,{duration:0.8});
   }
@@ -737,7 +737,6 @@ function rowClick(e,id){
   var l=listings.find(function(x){return x.id===id;});
   if(l&&l.lat&&l.lng&&mapObj&&(viewMode==='split'||viewMode==='map')){
     mapObj.setView([l.lat,l.lng],15);
-    var mk=markers[id];if(mk)mk.openPopup();
   }
 }
 
@@ -859,18 +858,14 @@ async function updateMap(){
     var col=scoreColor(l.combined);
     var sz=l.combined>=4?16:l.combined>=3?14:12;
     var icon=L.divIcon({className:'',html:'<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+col+';border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35);cursor:pointer"></div>',iconSize:[sz,sz],iconAnchor:[Math.round(sz/2),Math.round(sz/2)]});
-    (function(lid,lcol){
-      var mk=L.marker([fl[0].lat,fl[0].lng],{icon:icon});
-      // find l again by closure
-      var ll=listings.find(function(x){return x.id===lid;});
-      if(!ll||!ll.lat||!ll.lng)return;
-      mk=L.marker([ll.lat,ll.lng],{icon:icon}).addTo(mapObj);
+    (function(lid,llat,llng){
+      var mk=L.marker([llat,llng],{icon:icon}).addTo(mapObj);
       mk.on('click',function(e){
         L.DomEvent.stopPropagation(e);
         showDetail(lid);
       });
       markers[lid]=mk;
-    })(l.id,col);
+    })(l.id,l.lat,l.lng);
   }
   setTimeout(function(){mapObj.invalidateSize();},100);
 }

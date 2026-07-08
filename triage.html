@@ -104,10 +104,9 @@ td.addr-cell{max-width:150px;white-space:normal;line-height:1.3}
 input[type=checkbox]{width:13px;height:13px;cursor:pointer;accent-color:var(--blue)}
 
 /* MAP */
-.map-pane{width:420px;flex-shrink:0;border-left:1px solid var(--border);display:flex;flex-direction:column;transition:width .2s}
-.map-pane.hidden{width:0;overflow:hidden;border:none}
+.map-pane{width:420px;flex:0 0 420px;position:relative;min-height:0;border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .2s}
+.map-pane.hidden{width:0;flex:0 0 0;overflow:hidden;border:none}
 #map{position:absolute;top:0;left:0;right:0;bottom:0;}
-.map-pane{position:relative;flex:1;min-height:0;overflow:hidden;}
 .map-popup-title{font-weight:600;font-size:13px;margin-bottom:4px;color:#1a1a18}
 .map-popup-row{font-size:11px;color:#555;margin:1px 0}
 .map-popup-score{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:4px;margin-top:4px}
@@ -612,7 +611,7 @@ async function showMSOABoundary(msoaCode){
   if(_msoaLayer){mapObj.removeLayer(_msoaLayer);_msoaLayer=null;}
   if(!msoaCode||!mapObj)return;
   try{
-    var url='https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/MSOA_Dec_2021_Boundaries_Generalised_Clipped_EW/FeatureServer/0/query?where=MSOA21CD%3D%27'+msoaCode+'%27&outFields=MSOA21CD,MSOA21NM&f=geojson';
+    var url='https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/Middle_layer_Super_Output_Areas_December_2021_Boundaries_EW_BGC_V3/FeatureServer/0/query?where=MSOA21CD%3D%27'+msoaCode+'%27&outFields=MSOA21CD,MSOA21NM&f=geojson';
     var r=await fetch(url);
     var gj=await r.json();
     if(gj.features&&gj.features.length){
@@ -876,7 +875,7 @@ function setView(mode){
   ['list','split','map'].forEach(function(m){document.getElementById('vbtn-'+m).classList.toggle('active',m===mode);});
   var mp=document.getElementById('map-pane');
   var tp=document.getElementById('table-pane');
-  if(mode==='list'){mp.classList.add('hidden');tp.style.display='block';}
+  if(mode==='list'){mp.classList.add('hidden');mp.style.width='';tp.style.display='block';}
   else if(mode==='split'){mp.classList.remove('hidden');mp.style.width='420px';tp.style.display='block';initMap();setTimeout(function(){mapObj.invalidateSize();updateMap();},50);}
   else{mp.classList.remove('hidden');mp.style.width='100%';tp.style.display='none';if(!mapObj)initMap();setTimeout(function(){if(mapObj){mapObj.invalidateSize();updateMap();}},100);}
 }

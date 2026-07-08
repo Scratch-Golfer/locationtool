@@ -169,6 +169,15 @@ input[type=checkbox]{width:13px;height:13px;cursor:pointer;accent-color:var(--bl
     <option value="ppsf-asc">£/sqft ↑</option>
     <option value="size-desc">Size ↓</option>
   </select>
+  <div class="sep"></div>
+  <span class="fl">SQFT</span>
+  <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2)">
+    <input type="range" id="sqft-min" min="0" max="5000" step="100" value="0" oninput="updateSqftLabel();render()" style="width:65px;cursor:pointer;accent-color:#3B6D11">
+    <span id="sqft-min-lbl" style="min-width:24px;font-size:10px">0</span>
+    <span style="color:var(--text3)">–</span>
+    <input type="range" id="sqft-max" min="0" max="5000" step="100" value="5000" oninput="updateSqftLabel();render()" style="width:65px;cursor:pointer;accent-color:#3B6D11">
+    <span id="sqft-max-lbl" style="min-width:30px;font-size:10px">any</span>
+  </div>
 </div>
 
 <div class="score-progress" id="score-progress">

@@ -163,7 +163,7 @@ input[type=checkbox]{width:13px;height:13px;cursor:pointer;accent-color:var(--bl
   <select class="fsort" id="sort-sel" onchange="applySort()">
     <option value="date-desc">Newest first</option>
     <option value="combined-desc">Score ↓</option>
-    <option value="macro-desc">Macro ↓</option>
+    <option value="macro-desc" selected>Macro ↓</option>
     <option value="micro-desc">Micro ↓</option>
     <option value="price-asc">Price ↑</option>
     <option value="ppsf-asc">£/sqft ↑</option>
@@ -209,6 +209,8 @@ input[type=checkbox]{width:13px;height:13px;cursor:pointer;accent-color:var(--bl
           <th>Source</th>
           <th onclick="sortBy('date')">Added</th>
           <th>Agent</th>
+          <th id="th-lastact" style="display:none">Last action</th>
+          <th id="th-nextact" style="display:none">Next action</th>
           <th></th>
         </tr>
       </thead>
@@ -258,6 +260,9 @@ async function loadListings(){
       combined:r.macro_score_v2!=null&&r.micro_score_v2!=null?(r.macro_score_v2*0.6+r.micro_score_v2*0.4).toFixed(1):r.macro_score_v2||r.micro_score_v2||null,
       macro_reasoning:r.macro_score_v2_reasoning||'',
       micro_reasoning:r.micro_score_v2_reasoning||'',
+      last_action:r.last_action||'',
+      last_action_date:r.last_action_date||null,
+      next_action:r.next_action||'',
       macro_data:r.macro_score_data||null,
       micro_data:r.micro_score_data||null,
       status:r.status||'inbox',
@@ -272,7 +277,7 @@ async function loadListings(){
   updateCounts();
 }
 var curTab='inbox',srcFilter='all',extraFilters={scored:false,hi:false};
-var sortCol='date',sortDir='desc';
+var sortCol='macro',sortDir='desc';
 var viewMode='list';
 var mapObj=null,markers={};
 var scoringCancelled=false;
@@ -582,6 +587,36 @@ function fmtDate(iso){
 }
 function srcTag(s){var labels={rightmove:'Rightmove',loopnet:'LoopNet',agent:'Agent'};return '<span class="src">'+(labels[s]||s)+'</span>';}
 
+async function saveLastAction(id,val){
+  var l=listings.find(function(x){return x.id===id;});
+  if(!l)return;
+  var trimmed=(val||'').trim();
+  if(trimmed===(l.last_action||''))return; // no change, skip write
+  var nowIso=new Date().toISOString();
+  l.last_action=trimmed;
+  l.last_action_date=trimmed?nowIso:null;
+  if(l._dbId){
+    try{
+      await db.from('listings').update({last_action:trimmed||null,last_action_date:trimmed?nowIso:null}).eq('id',l._dbId);
+      toast('Saved');
+    }catch(e){console.warn('Failed to save last_action:',e);toast('Error saving');}
+  }
+  render();
+}
+async function saveNextAction(id,val){
+  var l=listings.find(function(x){return x.id===id;});
+  if(!l)return;
+  var trimmed=(val||'').trim();
+  if(trimmed===(l.next_action||''))return; // no change, skip write
+  l.next_action=trimmed;
+  if(l._dbId){
+    try{
+      await db.from('listings').update({next_action:trimmed||null}).eq('id',l._dbId);
+      toast('Saved');
+    }catch(e){console.warn('Failed to save next_action:',e);toast('Error saving');}
+  }
+}
+
 function render(){
   var rows=sorted();
   var tbody=document.getElementById('tbody');
@@ -602,6 +637,19 @@ function render(){
       '<td>'+srcTag(l.source)+'</td>'+
       '<td class="date-cell">'+fmtDate(l.date)+'</td>'+
       '<td style="font-size:11px;color:var(--text2);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+l.agent+'</td>'+
+      (curTab==='enquiry'?(
+      '<td onclick="event.stopPropagation()" style="min-width:150px">'
+        +'<input type="text" value="'+(l.last_action||'').replace(/"/g,'&quot;')+'" placeholder="e.g. Called agent"'
+        +' style="width:100%;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:11px;font-family:inherit;margin-bottom:2px"'
+        +' onclick="event.stopPropagation()" onkeydown="if(event.key===\'Enter\')this.blur()" onblur="saveLastAction(\''+l.id+'\',this.value)">'
+        +'<div style="font-size:9px;color:var(--text3)">'+(l.last_action_date?fmtDate(l.last_action_date):'')+'</div>'
+      +'</td>'
+      +'<td onclick="event.stopPropagation()" style="min-width:150px">'
+        +'<input type="text" value="'+(l.next_action||'').replace(/"/g,'&quot;')+'" placeholder="e.g. Chase for floorplan"'
+        +' style="width:100%;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:11px;font-family:inherit"'
+        +' onclick="event.stopPropagation()" onkeydown="if(event.key===\'Enter\')this.blur()" onblur="saveNextAction(\''+l.id+'\',this.value)">'
+      +'</td>'
+      ):'')+
       '<td class="action-cell" onclick="event.stopPropagation()">'+
         (l.url?'<a href="'+l.url+'" target="_blank" style="color:var(--blue);font-size:11px;margin-right:4px" title="View listing">↗</a>':'')+
         (curTab==='inbox'
@@ -824,6 +872,9 @@ function switchTab(t){
   document.querySelectorAll('.tab').forEach(function(el){
     el.classList.toggle('active',el.getAttribute('onclick')==="switchTab('"+t+"')");
   });
+  var showActionCols=(t==='enquiry');
+  document.getElementById('th-lastact').style.display=showActionCols?'':'none';
+  document.getElementById('th-nextact').style.display=showActionCols?'':'none';
   render();updateCounts();updateMap();
 }
 function setSourceFilter(s){

@@ -392,7 +392,7 @@ function updateSqftLabel(){
 }
 
 function gss(r){for(var i=0;i<THR.length;i++)if(r>=THR[i][0])return THR[i][1];return 0.05;}
-function cmw(d){var W=0;Object.keys(WEIGHTS).forEach(function(k){var v=d[k];if(v==null)return;var b=BENCH[k];W+=WEIGHTS[k]*gss(k!=='social_rent'?(v/b):(b/Math.max(v,0.1)));});return W;}
+function cmw(d){var W=0,usedWt=0;Object.keys(WEIGHTS).forEach(function(k){var v=d[k];if(v==null)return;var b=BENCH[k];W+=WEIGHTS[k]*gss(k!=='social_rent'?(v/b):(b/Math.max(v,0.1)));usedWt+=WEIGHTS[k];});return usedWt>0?W/usedWt:0;}
 
 async function scoreOne(l){
   // Step 1: get postcode via geocoding if missing

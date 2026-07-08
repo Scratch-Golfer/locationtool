@@ -316,8 +316,8 @@ function isFullPostcode(pc){
 
 var GK='AIzaSyD7t9mpKJpMACotkzGWJ3kTsjX_81R-E-g';
 var HK='EyVRzn5O.UePfMTpM7rldFJL55Do9PeyzrEE1METa';
-var BENCH={professionals:66,age_30_44:40,age_16_29:26,private_rent:39.8,social_rent:4.25,deprivation:4};
-var WEIGHTS={professionals:.35,age_30_44:.15,age_16_29:.10,deprivation:.25,private_rent:.10,social_rent:.05};
+var BENCH={professionals:66,age_30_44:40,age_16_29:26,private_rent:39.8,social_rent:4.25,deprivation:4,abs_professionals:7100};
+var WEIGHTS={professionals:.30,age_30_44:.12,age_16_29:.08,deprivation:.22,private_rent:.08,social_rent:.05,abs_professionals:.15};
 var THR=[[1.10,1.00],[0.90,0.80],[0.75,0.55],[0.55,0.30],[0.00,0.05]];
 
 // Postcode cache — avoids duplicate Homedata calls within a session
@@ -343,13 +343,16 @@ async function fetchHomedata(pc){
   ]);
   var dem=await dr.json();var dep=await pr.json();
   if(dem.error)return null;
+  var pop=parseFloat((dem.population||{}).total||0);
   var d={
     professionals:parseFloat((dem.occupation||{}).managerial_professional_pct||0),
     age_30_44:parseFloat((dem.age||{}).age_30_44_pct||0),
     age_16_29:parseFloat((dem.age||{}).age_16_29_pct||0),
     private_rent:parseFloat((dem.tenure||{}).private_rented_pct||0),
     social_rent:parseFloat((dem.tenure||{}).social_rented_pct||0),
-    deprivation:parseFloat(((dep.overall)||{}).score||4)
+    deprivation:parseFloat(((dep.overall)||{}).score||4),
+    population:pop,
+    abs_professionals:Math.round(pop*(parseFloat((dem.occupation||{}).managerial_professional_pct||0)/100))
   };
   // Save to postcode_data table for future use
   try{

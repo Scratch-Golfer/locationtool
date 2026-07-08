@@ -258,7 +258,8 @@ async function loadListings(){
   });
   listingsLoaded=true;
   if(loadingEl)loadingEl.style.display='none';
-  loadListings();
+  render();
+  updateCounts();
 }
 var curTab='inbox',srcFilter='all',extraFilters={scored:false,hi:false};
 var sortCol='date',sortDir='desc';

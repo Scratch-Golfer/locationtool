@@ -625,7 +625,10 @@ async function showMSOABoundary(msoaCode){
   }catch(e){console.warn('MSOA boundary failed:',e);}
 }
 
-function closeDetail(){var p=document.getElementById('dp');if(p)p.remove();if(_msoaLayer&&mapObj){mapObj.removeLayer(_msoaLayer);_msoaLayer=null;}}
+function closeDetail(){
+  var p=document.getElementById('dp');if(p)p.remove();
+  if(_msoaLayer&&mapObj){mapObj.removeLayer(_msoaLayer);_msoaLayer=null;}
+}
 function showDetail(id){
   closeDetail();
   var l=listings.find(function(x){return x.id===id;});
@@ -703,13 +706,26 @@ function showDetail(id){
   if(document.getElementById('dp-enq'))document.getElementById('dp-enq').onclick=function(){action(l.id,'enquiry');closeDetail();};
   if(document.getElementById('dp-acc'))document.getElementById('dp-acc').onclick=function(){action(l.id,'accepted');closeDetail();};
   document.getElementById('dp-rej').onclick=function(){action(l.id,'rejected');closeDetail();};
-  // Show MSOA boundary on map if we have the code
-  var msoaCode=l.msoa_code||(l.macro_data?JSON.parse(l.macro_data||'{}').msoa_code:null);
-  if(msoaCode&&mapObj){
-    // Switch to map view if not already
-    if(curView!=='map')setView('map');
+  // Show MSOA boundary on map if we have the code AND we're already in map view
+  var msoaCode=null;
+  try{msoaCode=l.msoa_code||(JSON.parse(l.macro_data||'{}').msoa_code)||null;}catch(e){}
+  if(msoaCode&&mapObj&&curView==='map'){
     showMSOABoundary(msoaCode);
     if(l.lat&&l.lng)mapObj.flyTo([l.lat,l.lng],15,{duration:0.8});
+  }
+  // Add a "Show on map" button in the panel if MSOA available
+  if(msoaCode){
+    var mapBtn=document.createElement('button');
+    mapBtn.textContent='Show on map';
+    mapBtn.style.cssText='width:100%;padding:8px;margin-top:8px;background:#f0f7e8;color:#3B6D11;border:1px solid #c8e6a0;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit';
+    mapBtn.onclick=function(){
+      setView('map');
+      setTimeout(function(){
+        if(msoaCode)showMSOABoundary(msoaCode);
+        if(l.lat&&l.lng)mapObj.flyTo([l.lat,l.lng],15,{duration:0.8});
+      },150);
+    };
+    p.querySelector('div:last-child').before(mapBtn);
   }
 }
 

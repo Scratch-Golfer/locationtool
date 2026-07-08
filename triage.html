@@ -323,11 +323,26 @@ async function scoreOne(l){
       var geoR=await fetch('https://maps.googleapis.com/maps/api/geocode/json?address='+encodeURIComponent((l.fullAddr||l.addr||'')+(l.area?', '+l.area:'')+', UK')+'&region=gb&key='+GK);
       var geoD=await geoR.json();
       if(geoD.status==='OK'&&geoD.results.length){
-        geoD.results[0].address_components.forEach(function(c){if(c.types.includes('postal_code'))pc=c.long_name;});
-        l.lat=geoD.results[0].geometry.location.lat;
-        l.lng=geoD.results[0].geometry.location.lng;
+        var res=geoD.results[0];
+        var lat=res.geometry.location.lat;
+        var lng=res.geometry.location.lng;
+        l.lat=lat;l.lng=lng;
+        // Try to get postcode from address components
+        res.address_components.forEach(function(c){
+          if(c.types.includes('postal_code'))pc=c.long_name;
+        });
+        // If no postcode, do a reverse geocode at the coords
+        if(!pc){
+          var revR=await fetch('https://maps.googleapis.com/maps/api/geocode/json?latlng='+lat+','+lng+'&result_type=postal_code&key='+GK);
+          var revD=await revR.json();
+          if(revD.status==='OK'&&revD.results.length){
+            revD.results[0].address_components.forEach(function(c){
+              if(c.types.includes('postal_code'))pc=c.long_name;
+            });
+          }
+        }
       }
-    }catch(e){}
+    }catch(e){console.warn('Geocode failed for',l.addr,e);}
   }
   if(!pc||pc.length<5){l.macro_reasoning='Could not determine postcode';return false;}
   l.postcode=pc;

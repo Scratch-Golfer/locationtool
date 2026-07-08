@@ -237,7 +237,7 @@ async function loadListings(){
       postcode:(r.address||'').match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i)?((r.address||'').match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i)[0]):'',
       size:r.sqft,
       price:r.rent,
-      agent:r.agency_name||'',
+      agent:(r.agency_name||'').replace(/&amp;/g,'&').replace(/&#38;/g,'&').replace(/\\u0026/g,'&'),
       source:r.source||'rightmove',
       url:r.listing_url||'',
       date:r.submitted_at?r.submitted_at.split('T')[0]:'',

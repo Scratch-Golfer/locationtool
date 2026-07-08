@@ -622,10 +622,13 @@ async function action(id,ns){
       toast('Supabase error: '+e.message);return;
     }
   } else {
+    if(l._dbId){
+      await db.from('listings').update({status:ns}).eq('id',l._dbId);
+    }
     l.status=ns;l.selected=false;
-    toast(ns==='rejected'?'Rejected':'Restored to inbox');
+    toast(ns==='rejected'?'Rejected':ns==='inbox'?'Restored to inbox':'Moved');
   }
-  render();updateMap();
+  render();updateCounts();updateMap();
 }
 
 async function bulkAction(ns){

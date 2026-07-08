@@ -1220,7 +1220,17 @@ var _pcCache={};
 
 async function fetchHomedata(pc){
   var key=pc.trim().toUpperCase().replace(/\s+/g,'');
+  // 1. Session cache
   if(_pcCache[key])return _pcCache[key];
+  // 2. Supabase postcode_data table
+  try{
+    var{data:stored}=await db.from('postcode_data').select('demographics').eq('postcode',key).single();
+    if(stored&&stored.demographics){
+      _pcCache[key]=stored.demographics;
+      return stored.demographics;
+    }
+  }catch(e){}
+  // 3. Homedata API (last resort)
   var ep=encodeURIComponent(pc);
   var[dr,pr]=await Promise.all([
     fetch('https://api.homedata.co.uk/api/demographics/?postcode='+ep,{headers:{'Authorization':'Api-Key '+HK}}),
@@ -1236,6 +1246,10 @@ async function fetchHomedata(pc){
     social_rent:parseFloat((dem.tenure||{}).social_rented_pct||0),
     deprivation:parseFloat(((dep.overall)||{}).score||4)
   };
+  // Save to postcode_data table for future use
+  try{
+    await db.from('postcode_data').upsert({postcode:key,demographics:d,fetched_at:new Date().toISOString()});
+  }catch(e){console.warn('Failed to save postcode_data:',e);}
   _pcCache[key]=d;
   return d;
 }

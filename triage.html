@@ -369,13 +369,7 @@ async function scoreOne(l){
 var scoringTotal=0,scoringDone=0;
 async function scoreAll(){
   var btn=document.getElementById('score-all-btn');
-  // Score all without decimal scores, or all unscored
-  var unscored=listings.filter(function(l){
-    if(l.status==='rejected')return false;
-    var hasDecimal=false;
-    try{var d=JSON.parse(l.macro_data||'{}');hasDecimal=d.decimal_score!=null;}catch(e){}
-    return !hasDecimal;
-  });
+  var unscored=listings.filter(function(l){return l.macro===null&&l.status!=='rejected';});
   if(!unscored.length){toast('All listings already scored');return;}
   scoringCancelled=false;
   scoringTotal=unscored.length;scoringDone=0;

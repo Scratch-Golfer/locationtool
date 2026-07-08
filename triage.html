@@ -249,7 +249,7 @@ async function loadListings(){
       micro_reasoning:r.micro_score_v2_reasoning||'',
       macro_data:r.macro_score_data||null,
       micro_data:r.micro_score_data||null,
-      status:'inbox',
+      status:r.status||'inbox',
       selected:false,
       lat:null,lng:null,
       _dbId:r.id
@@ -607,6 +607,8 @@ function clearSel(){listings.forEach(function(l){l.selected=false;});render();}
 
 async function action(id,ns){
   var l=listings.find(function(x){return x.id===id;});
+  if(!l){console.error('action: listing not found',id);toast('Error: listing not found');return;}
+  console.log('action',ns,'on',l.addr,'_dbId=',l._dbId);
   if(ns==='enquiry'){
     if(l._dbId)await db.from('listings').update({status:'enquiry'}).eq('id',l._dbId);
     l.status='enquiry';l.selected=false;

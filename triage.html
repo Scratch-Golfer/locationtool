@@ -351,7 +351,7 @@ async function fetchHomedata(pc){
     private_rent:parseFloat((dem.tenure||{}).private_rented_pct||0),
     social_rent:parseFloat((dem.tenure||{}).social_rented_pct||0),
     deprivation:parseFloat(((dep.overall)||{}).score||4),
-    population:pop,
+    population:pop,// MSOA-level population
     abs_professionals:Math.round(pop*(parseFloat((dem.occupation||{}).managerial_professional_pct||0)/100))
   };
   // Save to postcode_data table for future use

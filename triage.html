@@ -233,6 +233,7 @@ async function loadListings(){
     return {
       id:r.id,
       addr:r.address,
+      fullAddr:r.address,
       area:'',
       postcode:(r.address||'').match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i)?((r.address||'').match(/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i)[0]):'',
       size:r.sqft,
@@ -314,13 +315,16 @@ function cmw(d){var W=0;Object.keys(WEIGHTS).forEach(function(k){var v=d[k];if(v
 async function scoreOne(l){
   // Step 1: get postcode via geocoding if missing
   var pc=l.postcode;
-  if(!pc||pc.length<5){
+  // Only a full postcode (e.g. SW11 1AA) works with Homedata — district codes (SW11) don't
+  var isFullPc=pc&&/^[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}$/i.test(pc.trim());
+  if(!isFullPc){
     try{
-      var geoR=await fetch('https://maps.googleapis.com/maps/api/geocode/json?address='+encodeURIComponent((l.addr||'')+(l.area?', '+l.area:'')+', London, UK')+'&region=gb&key='+GK);
+      var geoR=await fetch('https://maps.googleapis.com/maps/api/geocode/json?address='+encodeURIComponent((l.fullAddr||l.addr||'')+(l.area?', '+l.area:'')+', UK')+'&region=gb&key='+GK);
       var geoD=await geoR.json();
       if(geoD.status==='OK'&&geoD.results.length){
         geoD.results[0].address_components.forEach(function(c){if(c.types.includes('postal_code'))pc=c.long_name;});
-        if(!l.lat){l.lat=geoD.results[0].geometry.location.lat;l.lng=geoD.results[0].geometry.location.lng;}
+        l.lat=geoD.results[0].geometry.location.lat;
+        l.lng=geoD.results[0].geometry.location.lng;
       }
     }catch(e){}
   }

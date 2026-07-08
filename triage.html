@@ -636,11 +636,12 @@ function showDetail(id){
   p.id='dp';
   p.style.cssText='position:fixed;right:0;top:0;width:380px;height:100vh;background:white;box-shadow:-4px 0 24px rgba(0,0,0,.15);z-index:1000;overflow-y:auto;padding:0;font-family:inherit;';
   var SIGS=[
-    {key:'professionals',label:'Professionals',bench:66,sfx:'%',wt:'35%'},
-    {key:'age_30_44',label:'Age 30-44',bench:40,sfx:'%',wt:'15%'},
-    {key:'age_16_29',label:'Age 16-29',bench:26,sfx:'%',wt:'10%'},
-    {key:'deprivation',label:'Deprivation',bench:4,sfx:'',wt:'25%'},
-    {key:'private_rent',label:'Private rent',bench:39.8,sfx:'%',wt:'10%'},
+    {key:'professionals',label:'Professionals',bench:66,sfx:'%',wt:'30%'},
+    {key:'abs_professionals',label:'Professional population',bench:7100,sfx:'',wt:'15%',isInt:true},
+    {key:'age_30_44',label:'Age 30-44',bench:40,sfx:'%',wt:'12%'},
+    {key:'age_16_29',label:'Age 16-29',bench:26,sfx:'%',wt:'8%'},
+    {key:'deprivation',label:'Deprivation',bench:4,sfx:'',wt:'22%'},
+    {key:'private_rent',label:'Private rent',bench:39.8,sfx:'%',wt:'8%'},
     {key:'social_rent',label:'Social rent',bench:4.25,sfx:'%',wt:'5%',inv:true},
   ];
   var md={};try{md=JSON.parse(l.macro_data||'{}');}catch(e){}
@@ -651,9 +652,11 @@ function showDetail(id){
     var rb=ratio>=1.0?'#e8f5d6':ratio>=0.75?'#fef3e2':'#fceaea';
     var bp=Math.min(ratio/1.5,1)*100;
     var bc=ratio>=1.0?'#5CB81F':ratio>=0.75?'#E8A020':'#E05030';
+    var vDisp=sig.isInt?Math.round(v).toLocaleString():v.toFixed(1);
+    var bDisp=sig.isInt?sig.bench.toLocaleString():sig.bench;
     return '<tr style="border-bottom:1px solid #f0ede6">'
       +'<td style="padding:7px 8px;font-size:11px;font-weight:600">'+sig.label+'<br><span style="font-weight:400;font-size:10px;color:#888">'+sig.wt+'</span></td>'
-      +'<td style="padding:7px 8px;text-align:right;font-size:12px;font-weight:700">'+v.toFixed(1)+sig.sfx+'<br><span style="font-size:10px;color:#888">bench '+sig.bench+sig.sfx+'</span></td>'
+      +'<td style="padding:7px 8px;text-align:right;font-size:12px;font-weight:700">'+vDisp+sig.sfx+'<br><span style="font-size:10px;color:#888">bench '+bDisp+sig.sfx+'</span></td>'
       +'<td style="padding:7px 8px;text-align:center"><span style="display:inline-block;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;background:'+rb+';color:'+rc+'">'+ratio.toFixed(2)+'x</span></td>'
       +'<td style="padding:7px 8px;min-width:55px"><div style="height:5px;border-radius:3px;background:#eae9e4;overflow:hidden"><div style="height:100%;width:'+bp.toFixed(0)+'%;background:'+bc+';border-radius:3px"></div></div></td>'
       +'</tr>';
@@ -681,6 +684,9 @@ function showDetail(id){
       +'<span style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;background:'+mb+';color:'+mc+';font-size:18px;font-weight:700;flex-shrink:0">'+l.macro+'</span>'
       +'<div style="font-size:11px;color:#444;line-height:1.5">'+l.macro_reasoning+'</div>'
       +'</div>';
+    if(md.population!=null){
+      inner+='<div style="font-size:11px;color:#888;margin-bottom:10px">MSOA population: <strong style="color:#444">'+Math.round(md.population).toLocaleString()+'</strong> residents</div>';
+    }
     if(sigRows){
       inner+='<div style="border:1px solid #e8e7e2;border-radius:6px;overflow:hidden;margin-bottom:16px">'
         +'<table style="width:100%;border-collapse:collapse">'

@@ -242,7 +242,7 @@ async function loadListings(){
       url:r.listing_url||'',
       date:r.submitted_at?r.submitted_at.split('T')[0]:'',
       notes:r.notes||'',
-      macro:r.macro_score_v2,
+      macro:(function(){try{var d=JSON.parse(r.macro_score_data||'{}');return d.decimal_score!=null?d.decimal_score:r.macro_score_v2;}catch(e){return r.macro_score_v2;}}()),
       micro:r.micro_score_v2,
       combined:r.macro_score_v2!=null&&r.micro_score_v2!=null?(r.macro_score_v2*0.6+r.micro_score_v2*0.4).toFixed(1):r.macro_score_v2||r.micro_score_v2||null,
       macro_reasoning:r.macro_score_v2_reasoning||'',
@@ -345,7 +345,7 @@ async function scoreOne(l){
     deprivation:parseFloat(((dep.overall)||{}).score||4)
   };
   var W=cmw(d);
-  var macroScore=Math.min(5,Math.max(1,Math.round(1+W*4)));
+  var macroScore=Math.min(5,Math.max(1,Math.round((1+W*4)*10)/10));
   var rsn='Professionals '+d.professionals.toFixed(0)+'% ('+(d.professionals>=59?'above':'below')+' 66% bench). Age 25-44: '+(d.age_30_44+d.age_16_29).toFixed(0)+'%. Social rent: '+d.social_rent.toFixed(1)+'%.';
 
   l.macro=macroScore;
@@ -355,10 +355,11 @@ async function scoreOne(l){
 
   // Step 3: save back to listings table
   if(l._dbId){
+    var scoreData=Object.assign({},d,{decimal_score:macroScore});
     await db.from('listings').update({
-      macro_score_v2:macroScore,
+      macro_score_v2:Math.round(macroScore),
       macro_score_v2_reasoning:rsn,
-      macro_score_data:JSON.stringify(d),
+      macro_score_data:JSON.stringify(scoreData),
       submitted_at:l.submitted_at||new Date().toISOString()
     }).eq('id',l._dbId);
   }
@@ -448,8 +449,8 @@ function sorted(){
 }
 
 // RENDER
-function scoreClass(v){if(v===null)return 'sn';return v>=4?'sh':v>=3?'sm':'sl';}
-function scoreLabel(v){if(v===null)return '—';return v.toFixed(1);}
+function scoreClass(v){if(v===null||v===undefined)return 'sn';var n=parseFloat(v);return n>=4?'sh':n>=3?'sm':'sl';}
+function scoreLabel(v){if(v===null||v===undefined)return '—';return parseFloat(v).toFixed(1);}
 function ppsfStr(l){if(!l.price||!l.size)return '<span class="poa">—</span>';return '£'+Math.round(l.price/l.size);}
 function priceStr(l){if(!l.price)return '<span class="poa">POA</span>';return '£'+l.price.toLocaleString();}
 function fmtDate(iso){

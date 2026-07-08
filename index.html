@@ -1277,7 +1277,7 @@ async function fetchHomedata(pc){
     private_rent:parseFloat((dem.tenure||{}).private_rented_pct||0),
     social_rent:parseFloat((dem.tenure||{}).social_rented_pct||0),
     deprivation:parseFloat(((dep.overall)||{}).score||4),
-    population:pop,
+    population:pop,// MSOA-level population
     abs_professionals:Math.round(pop*(parseFloat((dem.occupation||{}).managerial_professional_pct||0)/100))
   };
   // Save to postcode_data table for future use
@@ -1631,7 +1631,7 @@ function savePropFields(){
 
 var SIGNALS_DEF=[
   {key:'professionals',label:'Professionals',desc:'% managerial/professional — core member profile',bench:66,sfx:'%',weight:'30%'},
-  {key:'abs_professionals',label:'Catchment size',desc:'Absolute no. of professionals in postcode',bench:7100,sfx:'',weight:'15%'},
+  {key:'abs_professionals',label:'Neighbourhood professionals',desc:'Absolute no. of professionals in MSOA catchment (~10-15 min walk)',bench:7100,sfx:'',weight:'15%'},
   {key:'age_30_44',label:'Age 30-44',desc:'Primary target age band',bench:40,sfx:'%',weight:'12%'},
   {key:'age_16_29',label:'Age 16-29',desc:'Secondary age band — younger professionals',bench:26,sfx:'%',weight:'8%'},
   {key:'deprivation',label:'Deprivation',desc:'IMD /10 (10=least deprived)',bench:4,sfx:'',weight:'22%'},

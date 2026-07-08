@@ -1214,6 +1214,48 @@ function renderVenueBreakdown(places){
     +'<table style="width:100%;border-collapse:collapse"><tbody>'+rows+'</tbody></table></div>';
 }
 
+
+// Postcode cache — avoids duplicate Homedata calls within a session
+var _pcCache={};
+
+async function fetchHomedata(pc){
+  var key=pc.trim().toUpperCase().replace(/\s+/g,'');
+  if(_pcCache[key])return _pcCache[key];
+  var ep=encodeURIComponent(pc);
+  var[dr,pr]=await Promise.all([
+    fetch('https://api.homedata.co.uk/api/demographics/?postcode='+ep,{headers:{'Authorization':'Api-Key '+HK}}),
+    fetch('https://api.homedata.co.uk/api/deprivation/?postcode='+ep,{headers:{'Authorization':'Api-Key '+HK}})
+  ]);
+  var dem=await dr.json();var dep=await pr.json();
+  if(dem.error)return null;
+  var d={
+    professionals:parseFloat((dem.occupation||{}).managerial_professional_pct||0),
+    age_30_44:parseFloat((dem.age||{}).age_30_44_pct||0),
+    age_16_29:parseFloat((dem.age||{}).age_16_29_pct||0),
+    private_rent:parseFloat((dem.tenure||{}).private_rented_pct||0),
+    social_rent:parseFloat((dem.tenure||{}).social_rented_pct||0),
+    deprivation:parseFloat(((dep.overall)||{}).score||4)
+  };
+  _pcCache[key]=d;
+  return d;
+}
+
+function calcMacroScore(d){
+  var W=cmw(d);
+  var score=Math.min(5,Math.max(1,Math.round((1+W*4)*10)/10));
+  var rsn='Professionals '+d.professionals.toFixed(0)+'% ('+(d.professionals>=59?'above':'below')+' 66% bench). Age 25-44: '+(d.age_30_44+d.age_16_29).toFixed(0)+'%. Social rent: '+d.social_rent.toFixed(1)+'%.';
+  return{score:score,reasoning:rsn,data:d};
+}
+
+function recalcFromStoredData(storedJson){
+  // Recalculate score from stored macro_score_data without any API call
+  try{
+    var d=JSON.parse(storedJson);
+    if(!d||!d.professionals)return null;
+    return calcMacroScore(d);
+  }catch(e){return null;}
+}
+
 function gss(r){var T=[[1.10,1.00],[0.90,0.80],[0.75,0.55],[0.55,0.30],[0.00,0.05]];for(var i=0;i<T.length;i++)if(r>=T[i][0])return T[i][1];return 0.05;}
 function cmw(d){var b={professionals:66,age_30_44:40,age_16_29:26,private_rent:39.8,social_rent:4.25,deprivation:4};var w={professionals:.35,age_30_44:.15,age_16_29:.10,deprivation:.25,private_rent:.10,social_rent:.05};var W=0;['professionals','age_30_44','age_16_29','deprivation','private_rent','social_rent'].forEach(function(k){var v=d[k];if(v==null)return;W+=w[k]*gss(k!=='social_rent'?(v/b[k]):(b[k]/Math.max(v,.1)));});return W;}
 function sc5(v){return v>=4?'score-high':v>=3?'score-mid':'score-low';}

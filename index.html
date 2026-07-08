@@ -1496,14 +1496,10 @@ async function runBatchScore(){
           }catch(e){}
         }
         if(pc){
-          var ep=encodeURIComponent(pc);
-          var[dr,pr]=await Promise.all([
-            fetch('https://api.homedata.co.uk/api/demographics/?postcode='+ep,{headers:{'Authorization':'Api-Key '+HK}}),
-            fetch('https://api.homedata.co.uk/api/deprivation/?postcode='+ep,{headers:{'Authorization':'Api-Key '+HK}})
-          ]);
-          var dem=await dr.json();var dep=await pr.json();
-          if(!dem.error){
-            var d={professionals:parseFloat((dem.occupation||{}).managerial_professional_pct||0),age_30_44:parseFloat((dem.age||{}).age_30_44_pct||0),age_16_29:parseFloat((dem.age||{}).age_16_29_pct||0),private_rent:parseFloat((dem.tenure||{}).private_rented_pct||0),social_rent:parseFloat((dem.tenure||{}).social_rented_pct||0),deprivation:parseFloat(((dep.overall)||{}).score||4)};
+          // Use stored data or cache — avoid duplicate API calls
+          var _bs=recalcFromStoredData(s.macro_score_data||'');
+          var d=_bs?_bs.data:await fetchHomedata(pc);
+          if(d){
             var W=cmw(d);var macroSc=Math.min(5,Math.max(1,Math.round(1+W*4)));
             var rsn=[d.professionals>=59?'Professional density ('+d.professionals.toFixed(0)+'%) close to benchmark.':'Professional density ('+d.professionals.toFixed(0)+'%) below 66% benchmark.',(d.age_30_44+d.age_16_29)>=58?'Strong 25-44 age ('+(d.age_30_44+d.age_16_29).toFixed(0)+'% combined).':'25-44 age at '+(d.age_30_44+d.age_16_29).toFixed(0)+'%.',d.deprivation>=3.4?'Deprivation ('+d.deprivation+'/10) consistent.':'Deprivation ('+d.deprivation+'/10) below benchmark.'].join(' ');
             await patchSite(s.id,{macro_score_v2:macroSc,macro_score_v2_reasoning:rsn,macro_score_data:JSON.stringify(d)});

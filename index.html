@@ -1339,31 +1339,18 @@ async function runV2Macro(){
   var pc=xpc(s.address);
   if(!pc){alert('No UK postcode found. Click Edit address and add the postcode, e.g. N8 9DH');return;}
   var btn=g('v2-macro-btn');btn.disabled=true;btn.textContent='Running...';
-  var steps=['Fetching demographics','Fetching deprivation','Computing score'];svp(steps,0,'run','');
+  var steps=['Checking cache / fetching demographics','Fetching deprivation','Computing score'];svp(steps,0,'run','');
   try{
-    var ep=encodeURIComponent(pc);
-    var demRes=await fetch('https://api.homedata.co.uk/api/demographics/?postcode='+ep,{headers:{'Authorization':'Api-Key EyVRzn5O.UePfMTpM7rldFJL55Do9PeyzrEE1METa','Accept':'application/json'}});
-    var dem=await demRes.json();
-    if(!demRes.ok||dem.error){throw new Error((dem.error&&dem.error.message)||'Demographics fetch failed ('+demRes.status+')');}
-    svp(steps,1,'run','');
-    var depRes=await fetch('https://api.homedata.co.uk/api/deprivation/?postcode='+ep,{headers:{'Authorization':'Api-Key EyVRzn5O.UePfMTpM7rldFJL55Do9PeyzrEE1METa','Accept':'application/json'}});
-    var dep=await depRes.json();
+    // Uses the shared, cached fetchHomedata() — checks session cache then postcode_data
+    // table before ever hitting the Homedata API, so re-running this for an
+    // already-scored postcode costs zero API calls.
+    var d=await fetchHomedata(pc);
+    if(!d){throw new Error('Postcode not found in Homedata');}
+    svp(steps,1,'done','');
     svp(steps,2,'run','');
-    var d={
-      professionals:parseFloat(((dem.occupation)||{}).managerial_professional_pct||0),
-      age_30_44:parseFloat(((dem.age)||{}).age_30_44_pct||0),
-      age_16_29:parseFloat(((dem.age)||{}).age_16_29_pct||0),
-      private_rent:parseFloat(((dem.tenure)||{}).private_rented_pct||0),
-      social_rent:parseFloat(((dem.tenure)||{}).social_rented_pct||0),
-      deprivation:parseFloat(((dep.overall)||{}).score||4)
-    };
-    var W=cmw(d);
-    var score=Math.min(5,Math.max(1,Math.round(1+W*4)));
-    var rsn=[];
-    rsn.push(d.professionals>=59?'Professional density ('+d.professionals.toFixed(0)+'%) is close to benchmark.':'Professional density ('+d.professionals.toFixed(0)+'%) is below the 66% benchmark.');
-    rsn.push((d.age_30_44+d.age_16_29)>=58?'Strong 25-44 age concentration ('+(d.age_30_44+d.age_16_29).toFixed(0)+'% combined).':'25-44 age at '+(d.age_30_44+d.age_16_29).toFixed(0)+'% — below benchmark.');
-    rsn.push(d.deprivation>=3.4?'Deprivation ('+d.deprivation+'/10) consistent with live sites.':'Deprivation ('+d.deprivation+'/10) below benchmark.');
-    var reasoning=rsn.join(' ');
+    var result=calcMacroScore(d);
+    var score=result.score;
+    var reasoning=result.reasoning;
     svp(steps,2,'done','Score '+score+'/5');
     g('v2-progress').style.display='none';
     g('v2-macro-bubble').textContent=score;
@@ -1379,6 +1366,7 @@ async function runV2Macro(){
   }catch(e){
     svp(steps,0,'err',e.message);
     console.error('Macro score error:',e);
+    if(curId){try{await patchSite(curId,{macro_score_v2_reasoning:e.message});}catch(e2){}}
   }
   btn.disabled=false;btn.textContent='Re-run macro score';
 }

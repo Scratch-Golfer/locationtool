@@ -106,7 +106,8 @@ input[type=checkbox]{width:13px;height:13px;cursor:pointer;accent-color:var(--bl
 /* MAP */
 .map-pane{width:420px;flex-shrink:0;border-left:1px solid var(--border);display:flex;flex-direction:column;transition:width .2s}
 .map-pane.hidden{width:0;overflow:hidden;border:none}
-#map{flex:1;min-height:0}
+#map{flex:1;min-height:0;width:100%;height:100%}
+.map-pane{display:flex;flex-direction:column;}
 .map-popup-title{font-weight:600;font-size:13px;margin-bottom:4px;color:#1a1a18}
 .map-popup-row{font-size:11px;color:#555;margin:1px 0}
 .map-popup-score{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:4px;margin-top:4px}
@@ -253,6 +254,7 @@ async function loadListings(){
       date:r.submitted_at?r.submitted_at.split('T')[0]:'',
       notes:r.notes||'',
       macro:(function(){try{var d=JSON.parse(r.macro_score_data||'{}');return d.decimal_score!=null?d.decimal_score:r.macro_score_v2;}catch(e){return r.macro_score_v2;}}()),
+      msoa_code:(function(){try{var d=JSON.parse(r.macro_score_data||'{}');return d.msoa_code||null;}catch(e){return null;}}()),
       micro:r.micro_score_v2,
       combined:r.macro_score_v2!=null&&r.micro_score_v2!=null?(r.macro_score_v2*0.6+r.micro_score_v2*0.4).toFixed(1):r.macro_score_v2||r.micro_score_v2||null,
       macro_reasoning:r.macro_score_v2_reasoning||'',
@@ -344,6 +346,7 @@ async function fetchHomedata(pc){
   var dem=await dr.json();var dep=await pr.json();
   if(dem.error)return null;
   var pop=parseFloat((dem.population||{}).total||0);
+  var _msoaCode=(dem.geography||{}).msoa_code||null;
   var d={
     professionals:parseFloat((dem.occupation||{}).managerial_professional_pct||0),
     age_30_44:parseFloat((dem.age||{}).age_30_44_pct||0),
@@ -352,11 +355,12 @@ async function fetchHomedata(pc){
     social_rent:parseFloat((dem.tenure||{}).social_rented_pct||0),
     deprivation:parseFloat(((dep.overall)||{}).score||4),
     population:pop,// MSOA-level population
-    abs_professionals:Math.round(pop*(parseFloat((dem.occupation||{}).managerial_professional_pct||0)/100))
+    abs_professionals:Math.round(pop*(parseFloat((dem.occupation||{}).managerial_professional_pct||0)/100)),
+    msoa_code:_msoaCode
   };
   // Save to postcode_data table for future use
   try{
-    await db.from('postcode_data').upsert({postcode:key,demographics:d,fetched_at:new Date().toISOString()});
+    await db.from('postcode_data').upsert({postcode:key,demographics:d,msoa_code:(_msoaCode||null),fetched_at:new Date().toISOString()});
   }catch(e){console.warn('Failed to save postcode_data:',e);}
   _pcCache[key]=d;
   return d;
@@ -592,7 +596,27 @@ function render(){
 }
 
 
-function closeDetail(){var p=document.getElementById('dp');if(p)p.remove();}
+
+var _msoaLayer=null;
+async function showMSOABoundary(msoaCode){
+  // Remove existing boundary
+  if(_msoaLayer){mapObj.removeLayer(_msoaLayer);_msoaLayer=null;}
+  if(!msoaCode||!mapObj)return;
+  try{
+    var url='https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/MSOA_Dec_2021_Boundaries_Generalised_Clipped_EW/FeatureServer/0/query?where=MSOA21CD%3D%27'+msoaCode+'%27&outFields=MSOA21CD,MSOA21NM&f=geojson';
+    var r=await fetch(url);
+    var gj=await r.json();
+    if(gj.features&&gj.features.length){
+      _msoaLayer=L.geoJSON(gj,{
+        style:{color:'#3B6D11',weight:2.5,fillColor:'#3B6D11',fillOpacity:0.12,dashArray:'4 4'}
+      }).addTo(mapObj);
+      // Fly to boundary
+      mapObj.flyToBounds(_msoaLayer.getBounds(),{padding:[20,20],maxZoom:14,duration:0.8});
+    }
+  }catch(e){console.warn('MSOA boundary failed:',e);}
+}
+
+function closeDetail(){var p=document.getElementById('dp');if(p)p.remove();if(_msoaLayer&&mapObj){mapObj.removeLayer(_msoaLayer);_msoaLayer=null;}}
 function showDetail(id){
   closeDetail();
   var l=listings.find(function(x){return x.id===id;});
@@ -670,6 +694,14 @@ function showDetail(id){
   if(document.getElementById('dp-enq'))document.getElementById('dp-enq').onclick=function(){action(l.id,'enquiry');closeDetail();};
   if(document.getElementById('dp-acc'))document.getElementById('dp-acc').onclick=function(){action(l.id,'accepted');closeDetail();};
   document.getElementById('dp-rej').onclick=function(){action(l.id,'rejected');closeDetail();};
+  // Show MSOA boundary on map if we have the code
+  var msoaCode=l.msoa_code||(l.macro_data?JSON.parse(l.macro_data||'{}').msoa_code:null);
+  if(msoaCode&&mapObj){
+    // Switch to map view if not already
+    if(curView!=='map')setView('map');
+    showMSOABoundary(msoaCode);
+    if(l.lat&&l.lng)mapObj.flyTo([l.lat,l.lng],15,{duration:0.8});
+  }
 }
 
 function rowClick(e,id){

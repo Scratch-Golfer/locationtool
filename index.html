@@ -1505,7 +1505,13 @@ var batchRunning=false;
 async function runBatchScore(){
   if(batchRunning){alert('Batch score already running');return;}
   var targets=sites.filter(function(s){
-    return !isRej(s)&&s.address&&(s.macro_score_v2==null||s.micro_score_v2==null);
+    if(isRej(s)||!s.address)return false;
+    // Skip sites that already failed once (reasoning set but score still null) —
+    // otherwise every batch run re-attempts the same permanently-bad postcode/address
+    // and burns Homedata/Geocoding calls for nothing.
+    var macroNeeded=s.macro_score_v2==null&&!s.macro_score_v2_reasoning;
+    var microNeeded=s.micro_score_v2==null&&!s.micro_score_v2_reasoning;
+    return macroNeeded||microNeeded;
   });
   if(!targets.length){alert('All active sites already have scores.');return;}
   if(!confirm('Score '+targets.length+' sites without scores? This will use API credits and may take a few minutes.'))return;
@@ -1540,13 +1546,26 @@ async function runBatchScore(){
             var rsn=[d.professionals>=59?'Professional density ('+d.professionals.toFixed(0)+'%) close to benchmark.':'Professional density ('+d.professionals.toFixed(0)+'%) below 66% benchmark.',(d.age_30_44+d.age_16_29)>=58?'Strong 25-44 age ('+(d.age_30_44+d.age_16_29).toFixed(0)+'% combined).':'25-44 age at '+(d.age_30_44+d.age_16_29).toFixed(0)+'%.',d.deprivation>=3.4?'Deprivation ('+d.deprivation+'/10) consistent.':'Deprivation ('+d.deprivation+'/10) below benchmark.'].join(' ');
             await patchSite(s.id,{macro_score_v2:macroSc,macro_score_v2_reasoning:rsn,macro_score_data:JSON.stringify(d)});
             s.macro_score_v2=macroSc;s.macro_score_v2_reasoning=rsn;
+          }else{
+            var failRsn='Postcode not found in Homedata ('+pc+')';
+            await patchSite(s.id,{macro_score_v2_reasoning:failRsn});
+            s.macro_score_v2_reasoning=failRsn;
           }
+        }else{
+          var failRsn2='Could not determine postcode from address';
+          await patchSite(s.id,{macro_score_v2_reasoning:failRsn2});
+          s.macro_score_v2_reasoning=failRsn2;
         }
       }
       // Micro
       if(s.micro_score_v2==null){
         var geoR=await fetch('https://maps.googleapis.com/maps/api/geocode/json?address='+encodeURIComponent(s.address)+'&region=gb&key='+GK);
         var geoD=await geoR.json();
+        if(geoD.status!=='OK'||!geoD.results.length){
+          var microFailRsn='Address not found by geocoder';
+          await patchSite(s.id,{micro_score_v2_reasoning:microFailRsn});
+          s.micro_score_v2_reasoning=microFailRsn;
+        }
         if(geoD.status==='OK'&&geoD.results.length){
           var lat=geoD.results[0].geometry.location.lat;
           var lng=geoD.results[0].geometry.location.lng;
@@ -1570,6 +1589,10 @@ async function runBatchScore(){
             var microSc=Math.min(5,Math.max(1,Math.round(vSc*0.30+iSc*0.35+aiSc*0.35)));
             await patchSite(s.id,{micro_score_v2:microSc,micro_score_v2_reasoning:aiD.reasoning||'',lat:lat,lng:lng});
             s.micro_score_v2=microSc;s.micro_score_v2_reasoning=aiD.reasoning||'';
+          }else{
+            var microFailRsn2='No response from scoring model';
+            await patchSite(s.id,{micro_score_v2_reasoning:microFailRsn2,lat:lat,lng:lng});
+            s.micro_score_v2_reasoning=microFailRsn2;
           }
         }
       }

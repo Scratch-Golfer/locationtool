@@ -260,8 +260,7 @@ async function loadListings(){
       combined:r.macro_score_v2!=null&&r.micro_score_v2!=null?(r.macro_score_v2*0.6+r.micro_score_v2*0.4).toFixed(1):r.macro_score_v2||r.micro_score_v2||null,
       macro_reasoning:r.macro_score_v2_reasoning||'',
       micro_reasoning:r.micro_score_v2_reasoning||'',
-      last_action:r.last_action||'',
-      last_action_date:r.last_action_date||null,
+      action_history:(Array.isArray(r.action_history)?r.action_history:[]),
       next_action:r.next_action||'',
       macro_data:r.macro_score_data||null,
       micro_data:r.micro_score_data||null,
@@ -587,19 +586,24 @@ function fmtDate(iso){
 }
 function srcTag(s){var labels={rightmove:'Rightmove',loopnet:'LoopNet',agent:'Agent'};return '<span class="src">'+(labels[s]||s)+'</span>';}
 
+function latestAction(l){
+  var h=l.action_history||[];
+  return h.length?h[h.length-1]:null;
+}
 async function saveLastAction(id,val){
   var l=listings.find(function(x){return x.id===id;});
   if(!l)return;
   var trimmed=(val||'').trim();
-  if(trimmed===(l.last_action||''))return; // no change, skip write
+  var last=latestAction(l);
+  if(!trimmed||trimmed===(last?last.text:''))return; // empty or unchanged, skip write
   var nowIso=new Date().toISOString();
-  l.last_action=trimmed;
-  l.last_action_date=trimmed?nowIso:null;
+  var entry={text:trimmed,date:nowIso};
+  l.action_history=(l.action_history||[]).concat([entry]);
   if(l._dbId){
     try{
-      await db.from('listings').update({last_action:trimmed||null,last_action_date:trimmed?nowIso:null}).eq('id',l._dbId);
+      await db.from('listings').update({action_history:l.action_history}).eq('id',l._dbId);
       toast('Saved');
-    }catch(e){console.warn('Failed to save last_action:',e);toast('Error saving');}
+    }catch(e){console.warn('Failed to save action_history:',e);toast('Error saving');}
   }
   render();
 }
@@ -637,19 +641,22 @@ function render(){
       '<td>'+srcTag(l.source)+'</td>'+
       '<td class="date-cell">'+fmtDate(l.date)+'</td>'+
       '<td style="font-size:11px;color:var(--text2);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+l.agent+'</td>'+
-      (curTab==='enquiry'?(
-      '<td onclick="event.stopPropagation()" style="min-width:150px">'
-        +'<input type="text" value="'+(l.last_action||'').replace(/"/g,'&quot;')+'" placeholder="e.g. Called agent"'
-        +' style="width:100%;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:11px;font-family:inherit;margin-bottom:2px"'
-        +' onclick="event.stopPropagation()" onkeydown="if(event.key===\'Enter\')this.blur()" onblur="saveLastAction(\''+l.id+'\',this.value)">'
-        +'<div style="font-size:9px;color:var(--text3)">'+(l.last_action_date?fmtDate(l.last_action_date):'')+'</div>'
-      +'</td>'
-      +'<td onclick="event.stopPropagation()" style="min-width:150px">'
-        +'<input type="text" value="'+(l.next_action||'').replace(/"/g,'&quot;')+'" placeholder="e.g. Chase for floorplan"'
-        +' style="width:100%;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:11px;font-family:inherit"'
-        +' onclick="event.stopPropagation()" onkeydown="if(event.key===\'Enter\')this.blur()" onblur="saveNextAction(\''+l.id+'\',this.value)">'
-      +'</td>'
-      ):'')+
+      (curTab==='enquiry'?(function(){
+        var la=latestAction(l);
+        return '<td onclick="event.stopPropagation()" style="min-width:170px">'
+          +'<div style="display:flex;align-items:center;gap:5px">'
+          +'<input type="text" value="'+(la?la.text.replace(/"/g,'&quot;'):'')+'" placeholder="e.g. Called agent"'
+          +' style="flex:1;min-width:0;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:11px;font-family:inherit"'
+          +' onclick="event.stopPropagation()" onkeydown="if(event.key===\'Enter\')this.blur()" onblur="saveLastAction(\''+l.id+'\',this.value)">'
+          +'<span style="font-size:9px;color:var(--text3);white-space:nowrap;flex-shrink:0">'+(la?fmtDate(la.date):'')+'</span>'
+          +'</div>'
+        +'</td>'
+        +'<td onclick="event.stopPropagation()" style="min-width:150px">'
+          +'<input type="text" value="'+(l.next_action||'').replace(/"/g,'&quot;')+'" placeholder="e.g. Chase for floorplan"'
+          +' style="width:100%;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:11px;font-family:inherit"'
+          +' onclick="event.stopPropagation()" onkeydown="if(event.key===\'Enter\')this.blur()" onblur="saveNextAction(\''+l.id+'\',this.value)">'
+        +'</td>';
+      }()):'')+
       '<td class="action-cell" onclick="event.stopPropagation()">'+
         (l.url?'<a href="'+l.url+'" target="_blank" style="color:var(--blue);font-size:11px;margin-right:4px" title="View listing">↗</a>':'')+
         (curTab==='inbox'
@@ -761,6 +768,23 @@ function showDetail(id){
     inner+='<div style="color:#888;font-size:12px;padding:12px;background:#f5f4f0;border-radius:6px;margin-bottom:16px">Not yet scored — hit Auto-score all</div>';
   }
   var btnStyle='flex:1;padding:9px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;';
+  var hist=(l.action_history||[]).slice().reverse();
+  inner+='<div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#888;margin-bottom:8px;margin-top:16px">Action history</div>';
+  if(hist.length){
+    inner+='<div style="margin-bottom:10px">'+hist.map(function(h){
+      return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #f0ede6;font-size:12px">'
+        +'<span style="color:#333">'+h.text.replace(/</g,'&lt;')+'</span>'
+        +'<span style="color:#999;font-size:10px;white-space:nowrap;flex-shrink:0">'+fmtDate(h.date)+'</span>'
+        +'</div>';
+    }).join('')+'</div>';
+  }else{
+    inner+='<div style="color:#aaa;font-size:11px;margin-bottom:10px">No actions logged yet</div>';
+  }
+  inner+='<div style="display:flex;gap:6px;margin-bottom:8px">'
+    +'<input id="dp-newaction" type="text" placeholder="Log a new action…" style="flex:1;border:1px solid #ddd;border-radius:5px;padding:6px 8px;font-size:12px;font-family:inherit">'
+    +'<button id="dp-addaction" style="padding:6px 12px;border:none;border-radius:5px;background:#1C3A0E;color:white;font-size:12px;cursor:pointer">Add</button>'
+    +'</div>';
+  if(l.next_action)inner+='<div style="font-size:11px;color:#666;margin-bottom:16px">Next: <strong>'+l.next_action.replace(/</g,'&lt;')+'</strong></div>';
   inner+='<div style="display:flex;gap:8px;margin-top:8px">';
   if(l.status==='inbox')inner+='<button id="dp-enq" style="'+btnStyle+'background:#1C3A0E;color:white">→ Enquiry</button>';
   if(l.status==='enquiry')inner+='<button id="dp-acc" style="'+btnStyle+'background:#1C3A0E;color:white">✓ Pipeline</button>';
@@ -772,6 +796,14 @@ function showDetail(id){
   if(document.getElementById('dp-enq'))document.getElementById('dp-enq').onclick=function(){action(l.id,'enquiry');closeDetail();};
   if(document.getElementById('dp-acc'))document.getElementById('dp-acc').onclick=function(){action(l.id,'accepted');closeDetail();};
   document.getElementById('dp-rej').onclick=function(){action(l.id,'rejected');closeDetail();};
+  document.getElementById('dp-addaction').onclick=async function(){
+    var inp=document.getElementById('dp-newaction');
+    var val=inp.value.trim();
+    if(!val)return;
+    await saveLastAction(l.id,val);
+    showDetail(l.id); // refresh panel to show new entry
+  };
+  document.getElementById('dp-newaction').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('dp-addaction').click();});
   // Show MSOA boundary on map if we have the code AND we're already in map view
   var msoaCode=null;
   try{msoaCode=l.msoa_code||(JSON.parse(l.macro_data||'{}').msoa_code)||null;}catch(e){}

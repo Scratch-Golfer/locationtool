@@ -466,7 +466,16 @@ async function scoreOne(l){
 var scoringTotal=0,scoringDone=0;
 async function scoreAll(){
   var btn=document.getElementById('score-all-btn');
-  var unscored=listings.filter(function(l){return l.macro===null&&l.status!=='rejected';});
+  var unscored=listings.filter(function(l){
+    if(l.status==='rejected')return false;
+    if(l.macro===null)return true; // no score at all
+    // Also re-score if missing abs_professionals or msoa_code
+    try{
+      var d=JSON.parse(l.macro_data||'{}');
+      if(d.abs_professionals==null||d.msoa_code==null)return true;
+    }catch(e){return true;}
+    return false;
+  });
   if(!unscored.length){toast('All listings already scored');return;}
   scoringCancelled=false;
   scoringTotal=unscored.length;scoringDone=0;

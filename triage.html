@@ -423,12 +423,13 @@ async function sendToProspecting(l){
 
 // FILTER + SORT
 function filtered(){
-  var sqftMin=parseInt((document.getElementById('sqft-filter')||{}).value||0)||0;
+  var sqftMin=parseInt((document.getElementById('sqft-filter')||{value:0}).value||0)||0;
   return listings.filter(function(l){
     if(l.status!==curTab)return false;
     if(srcFilter!=='all'&&l.source!==srcFilter)return false;
     if(extraFilters.scored&&l.combined===null)return false;
     if(extraFilters.hi&&(l.combined===null||l.combined<3.5))return false;
+    if(sqftMin&&l.size&&l.size<sqftMin)return false;
     return true;
   });
 }
@@ -651,8 +652,10 @@ async function bulkAction(ns){
 
 function switchTab(t){
   curTab=t;listings.forEach(function(l){l.selected=false;});
-  document.querySelectorAll('.tab').forEach(function(el,i){el.classList.toggle('active',(t==='inbox'&&i===0)||(t==='rejected'&&i===1));});
-  render();updateMap();
+  document.querySelectorAll('.tab').forEach(function(el){
+    el.classList.toggle('active',el.getAttribute('onclick')==="switchTab('"+t+"')");
+  });
+  render();updateCounts();updateMap();
 }
 function setSourceFilter(s){
   srcFilter=s;

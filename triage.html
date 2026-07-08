@@ -135,6 +135,7 @@ input[type=checkbox]{width:13px;height:13px;cursor:pointer;accent-color:var(--bl
 <div class="topbar">
   <div class="nav-tabs">
     <button class="tab active" onclick="switchTab('inbox')">Inbox <span class="badge" id="c-inbox">29</span></button>
+    <button class="tab" onclick="switchTab('enquiry')">Enquiry <span class="badge" id="c-enquiry">0</span></button>
     <button class="tab" onclick="switchTab('rejected')">Rejected <span class="badge" id="c-rejected">0</span></button>
   </div>
   <div class="topbar-right">
@@ -421,6 +422,7 @@ async function sendToProspecting(l){
 
 // FILTER + SORT
 function filtered(){
+  var sqftMin=parseInt((document.getElementById('sqft-filter')||{}).value||0)||0;
   return listings.filter(function(l){
     if(l.status!==curTab)return false;
     if(srcFilter!=='all'&&l.source!==srcFilter)return false;
@@ -446,9 +448,9 @@ function sorted(){
 }
 
 // RENDER
-function scoreClass(v){if(v===null)return 'sn';return v>=3?'sh':v>=2?'sm':'sl';}
+function scoreClass(v){if(v===null)return 'sn';return v>=4?'sh':v>=3?'sm':'sl';}
 function scoreLabel(v){if(v===null)return '—';return v.toFixed(1);}
-function ppsfStr(l){if(!l.price||!l.size)return '<span class="poa">—</span>';return '£'+Math.round(l.price*12/l.size);}
+function ppsfStr(l){if(!l.price||!l.size)return '<span class="poa">—</span>';return '£'+Math.round(l.price/l.size);}
 function priceStr(l){if(!l.price)return '<span class="poa">POA</span>';return '£'+l.price.toLocaleString();}
 function fmtDate(iso){
   var d=new Date(iso),now=new Date(),diff=Math.round((now-d)/(1000*60*60*24));
@@ -470,27 +472,113 @@ function render(){
       '<td onclick="event.stopPropagation()"><input type="checkbox" '+(l.selected?'checked':'')+' onchange="toggleSel(\''+l.id+'\',this.checked)"></td>'+
       '<td class="addr-cell"><div class="a1">'+l.addr+'</div><div class="a2">'+l.area+'</div><div class="a3" title="'+(isFullPostcode(l.postcode)?'':' — district only, cannot score')+'">'+l.postcode+(isFullPostcode(l.postcode)?'':'<span style="color:var(--amber);margin-left:3px" title="District-only postcode — cannot score precisely">⚠</span>')+'</div></td>'+
       '<td style="white-space:nowrap">'+(l.size?l.size.toLocaleString()+' sqft':'—')+'</td>'+
-      '<td style="white-space:nowrap">'+priceStr(l)+'<span style="font-size:10px;color:var(--text3)"> pcm</span></td>'+
+      '<td style="white-space:nowrap">'+priceStr(l)+'<span style="font-size:10px;color:var(--text3)"> p.a.</span></td>'+
       '<td>'+ppsfStr(l)+'<span style="font-size:10px;color:var(--text3)"> pa</span></td>'+
       '<td><span class="sp '+scoreClass(l.macro)+'" title="'+(l.macro_reasoning||'Not scored')+'">'+scoreLabel(l.macro)+'</span></td>'+
       '<td><span class="sp '+scoreClass(l.micro)+'" title="'+(l.micro_reasoning||'Not scored')+'">'+scoreLabel(l.micro)+'</span></td>'+
-      '<td><strong style="font-size:13px">'+scoreLabel(l.combined)+'</strong>'+(l.combined!==null?'<span style="font-size:10px;color:var(--text3)">/4</span>':'')+'</td>'+
+      '<td><strong style="font-size:13px">'+scoreLabel(l.combined)+'</strong>'+(l.combined!==null?'<span style="font-size:10px;color:var(--text3)">/5</span>':'')+'</td>'+
       '<td>'+srcTag(l.source)+'</td>'+
       '<td class="date-cell">'+fmtDate(l.date)+'</td>'+
       '<td style="font-size:11px;color:var(--text2);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+l.agent+'</td>'+
       '<td class="action-cell" onclick="event.stopPropagation()">'+
         (l.url?'<a href="'+l.url+'" target="_blank" style="color:var(--blue);font-size:11px;margin-right:4px" title="View listing">↗</a>':'')+
         (curTab==='inbox'
-          ?'<button class="act acc" onclick="action(\''+l.id+'\',\'accepted\')" title="Accept → Prospecting">✓</button>'+
+          ?'<button class="act acc" onclick="action(\''+l.id+'\',\'enquiry\')" title="→ Enquiry">→</button>'+
+            '<button class="act rej" onclick="action(\''+l.id+'\',\'rejected\')">✗</button>'
+          :curTab==='enquiry'
+          ?'<button class="act acc" onclick="action(\''+l.id+'\',\'accepted\')" title="✓ Pipeline">✓</button>'+
+            '<button class="act rst" onclick="action(\''+l.id+'\',\'inbox\')">↩</button>'+
             '<button class="act rej" onclick="action(\''+l.id+'\',\'rejected\')">✗</button>'
           :'<button class="act rst" onclick="action(\''+l.id+'\',\'inbox\')">↩</button>')+
       '</td></tr>';
   }).join('');
 }
 
+
+function closeDetail(){var p=document.getElementById('dp');if(p)p.remove();}
+function showDetail(id){
+  closeDetail();
+  var l=listings.find(function(x){return x.id===id;});
+  if(!l)return;
+  var p=document.createElement('div');
+  p.id='dp';
+  p.style.cssText='position:fixed;right:0;top:0;width:380px;height:100vh;background:white;box-shadow:-4px 0 24px rgba(0,0,0,.15);z-index:1000;overflow-y:auto;padding:0;font-family:inherit;';
+  var SIGS=[
+    {key:'professionals',label:'Professionals',bench:66,sfx:'%',wt:'35%'},
+    {key:'age_30_44',label:'Age 30-44',bench:40,sfx:'%',wt:'15%'},
+    {key:'age_16_29',label:'Age 16-29',bench:26,sfx:'%',wt:'10%'},
+    {key:'deprivation',label:'Deprivation',bench:4,sfx:'',wt:'25%'},
+    {key:'private_rent',label:'Private rent',bench:39.8,sfx:'%',wt:'10%'},
+    {key:'social_rent',label:'Social rent',bench:4.25,sfx:'%',wt:'5%',inv:true},
+  ];
+  var md={};try{md=JSON.parse(l.macro_data||'{}');}catch(e){}
+  var sigRows=SIGS.map(function(sig){
+    var v=md[sig.key];if(v==null)return'';
+    var ratio=sig.inv?(sig.bench/Math.max(v,0.1)):(v/sig.bench);
+    var rc=ratio>=1.0?'#2d6b0a':ratio>=0.75?'#854F0B':'#8b2020';
+    var rb=ratio>=1.0?'#e8f5d6':ratio>=0.75?'#fef3e2':'#fceaea';
+    var bp=Math.min(ratio/1.5,1)*100;
+    var bc=ratio>=1.0?'#5CB81F':ratio>=0.75?'#E8A020':'#E05030';
+    return '<tr style="border-bottom:1px solid #f0ede6">'
+      +'<td style="padding:7px 8px;font-size:11px;font-weight:600">'+sig.label+'<br><span style="font-weight:400;font-size:10px;color:#888">'+sig.wt+'</span></td>'
+      +'<td style="padding:7px 8px;text-align:right;font-size:12px;font-weight:700">'+v.toFixed(1)+sig.sfx+'<br><span style="font-size:10px;color:#888">bench '+sig.bench+sig.sfx+'</span></td>'
+      +'<td style="padding:7px 8px;text-align:center"><span style="display:inline-block;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;background:'+rb+';color:'+rc+'">'+ratio.toFixed(2)+'x</span></td>'
+      +'<td style="padding:7px 8px;min-width:55px"><div style="height:5px;border-radius:3px;background:#eae9e4;overflow:hidden"><div style="height:100%;width:'+bp.toFixed(0)+'%;background:'+bc+';border-radius:3px"></div></div></td>'
+      +'</tr>';
+  }).join('');
+  var mc=l.macro>=4?'#2d6b0a':l.macro>=3?'#854F0B':'#8b2020';
+  var mb=l.macro>=4?'#e8f5d6':l.macro>=3?'#fef3e2':'#fceaea';
+  var inner='<div style="background:#1C3A0E;padding:16px 20px;color:white">'
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
+    +'<div style="font-size:15px;font-weight:700;flex:1;margin-right:8px">'+l.addr+'</div>'
+    +'<button id="dp-close" style="background:rgba(255,255,255,.2);border:none;color:white;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;flex-shrink:0">✕</button>'
+    +'</div>'
+    +'<div style="font-size:11px;opacity:.7;margin-top:4px">'+l.area+' · '+l.postcode+'</div>'
+    +'</div>'
+    +'<div style="padding:16px 20px">'
+    +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">'
+    +(l.size?'<div style="background:#f5f4f0;border-radius:6px;padding:10px;text-align:center"><div style="font-size:16px;font-weight:700">'+l.size.toLocaleString()+'</div><div style="font-size:10px;color:#888">sqft</div></div>':'')
+    +(l.price?'<div style="background:#f5f4f0;border-radius:6px;padding:10px;text-align:center"><div style="font-size:16px;font-weight:700">£'+l.price.toLocaleString()+'</div><div style="font-size:10px;color:#888">p.a.</div></div>':'')
+    +(l.price&&l.size?'<div style="background:#f5f4f0;border-radius:6px;padding:10px;text-align:center"><div style="font-size:16px;font-weight:700">£'+Math.round(l.price/l.size)+'</div><div style="font-size:10px;color:#888">£/sqft</div></div>':'')
+    +'</div>'
+    +(l.agent?'<div style="font-size:12px;color:#666;margin-bottom:8px">Agent: <strong>'+l.agent+'</strong></div>':'')
+    +(l.url?'<a href="'+l.url+'" target="_blank" style="display:inline-block;margin-bottom:16px;font-size:12px;color:#3B6D11;font-weight:600">View on Rightmove ↗</a><br>':'')
+    +'<div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#888;margin-bottom:8px;margin-top:8px">Macro score</div>';
+  if(l.macro!=null){
+    inner+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+      +'<span style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;background:'+mb+';color:'+mc+';font-size:18px;font-weight:700;flex-shrink:0">'+l.macro+'</span>'
+      +'<div style="font-size:11px;color:#444;line-height:1.5">'+l.macro_reasoning+'</div>'
+      +'</div>';
+    if(sigRows){
+      inner+='<div style="border:1px solid #e8e7e2;border-radius:6px;overflow:hidden;margin-bottom:16px">'
+        +'<table style="width:100%;border-collapse:collapse">'
+        +'<thead><tr style="background:#f5f4f0"><th style="padding:5px 8px;font-size:9px;font-weight:600;color:#888;text-align:left">SIGNAL</th>'
+        +'<th style="padding:5px 8px;font-size:9px;font-weight:600;color:#888;text-align:right">VALUE</th>'
+        +'<th style="padding:5px 8px;font-size:9px;font-weight:600;color:#888;text-align:center">RATIO</th>'
+        +'<th style="padding:5px 8px;font-size:9px;font-weight:600;color:#888">BAR</th></tr></thead>'
+        +'<tbody>'+sigRows+'</tbody></table></div>';
+    }
+  }else{
+    inner+='<div style="color:#888;font-size:12px;padding:12px;background:#f5f4f0;border-radius:6px;margin-bottom:16px">Not yet scored — hit Auto-score all</div>';
+  }
+  var btnStyle='flex:1;padding:9px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;';
+  inner+='<div style="display:flex;gap:8px;margin-top:8px">';
+  if(l.status==='inbox')inner+='<button id="dp-enq" style="'+btnStyle+'background:#1C3A0E;color:white">→ Enquiry</button>';
+  if(l.status==='enquiry')inner+='<button id="dp-acc" style="'+btnStyle+'background:#1C3A0E;color:white">✓ Pipeline</button>';
+  inner+='<button id="dp-rej" style="'+btnStyle+'background:#fceaea;color:#8b2020;border:1px solid #f0c0c0">✗ Reject</button>';
+  inner+='</div></div></div>';
+  p.innerHTML=inner;
+  document.body.appendChild(p);
+  document.getElementById('dp-close').onclick=closeDetail;
+  if(document.getElementById('dp-enq'))document.getElementById('dp-enq').onclick=function(){action(l.id,'enquiry');closeDetail();};
+  if(document.getElementById('dp-acc'))document.getElementById('dp-acc').onclick=function(){action(l.id,'accepted');closeDetail();};
+  document.getElementById('dp-rej').onclick=function(){action(l.id,'rejected');closeDetail();};
+}
+
 function rowClick(e,id){
   if(e.target.tagName==='INPUT'||e.target.tagName==='BUTTON'||e.target.tagName==='A')return;
   document.querySelectorAll('#tbody tr').forEach(function(r){r.classList.remove('highlighted');});
+  showDetail(id);
   var tr=document.getElementById('tr-'+id);if(tr)tr.classList.add('highlighted');
   var l=listings.find(function(x){return x.id===id;});
   if(l&&l.lat&&l.lng&&mapObj&&(viewMode==='split'||viewMode==='map')){
@@ -501,6 +589,7 @@ function rowClick(e,id){
 
 function updateCounts(){
   document.getElementById('c-inbox').textContent=listings.filter(function(l){return l.status==='inbox';}).length;
+  var _eq=document.getElementById('c-enquiry');if(_eq)_eq.textContent=listings.filter(function(l){return l.status==='enquiry';}).length;
   document.getElementById('c-rejected').textContent=listings.filter(function(l){return l.status==='rejected';}).length;
 }
 function updateBulkBar(){
@@ -517,11 +606,17 @@ function clearSel(){listings.forEach(function(l){l.selected=false;});render();}
 
 async function action(id,ns){
   var l=listings.find(function(x){return x.id===id;});
+  if(ns==='enquiry'){
+    if(l._dbId)await db.from('listings').update({status:'enquiry'}).eq('id',l._dbId);
+    l.status='enquiry';l.selected=false;
+    toast('→ Added to Enquiry list');
+    render();updateCounts();return;
+  }
   if(ns==='accepted'){
     try{
       await sendToProspecting(l);
       l.status=ns;l.selected=false;
-      toast('✓ Added to Location Pipeline prospecting');
+      toast('✓ Added to Location Pipeline');
     }catch(e){
       toast('Supabase error: '+e.message);return;
     }

@@ -823,34 +823,31 @@ async function updateMap(){
   var fl=filtered();
   for(var i=0;i<fl.length;i++){
     var l=fl[i];
-    if(!l.lat&&l.postcode){try{var c=await geocode(l.postcode);if(c){l.lat=c.lat;l.lng=c.lng;}}catch(e){}}
+    if(!l.lat&&l.postcode){
+      try{
+        var gR=await fetch('https://maps.googleapis.com/maps/api/geocode/json?address='+encodeURIComponent(l.postcode+', UK')+'&region=gb&key='+GK);
+        var gD=await gR.json();
+        if(gD.status==='OK'&&gD.results.length){l.lat=gD.results[0].geometry.location.lat;l.lng=gD.results[0].geometry.location.lng;}
+      }catch(e){}
+    }
     if(!l.lat||!l.lng)continue;
     var col=scoreColor(l.combined);
-    var icon=L.divIcon({className:'',html:'<div style="width:14px;height:14px;border-radius:50%;background:'+col+';border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>',iconSize:[14,14],iconAnchor:[7,7]});
-    (function(l,col){
-      var mk=L.marker([l.lat,l.lng],{icon:icon}).addTo(mapObj);
-      var scoreHtml=l.combined!==null?'<span class="map-popup-score" style="background:'+col+'20;color:'+col+'">'+l.combined.toFixed(1)+'/4</span>':'<span style="font-size:11px;color:#888">Not scored</span>';
-      mk.bindPopup('<div style="min-width:200px">'+
-        '<div class="map-popup-title">'+l.addr+'</div>'+
-        '<div class="map-popup-row">'+l.area+'</div>'+
-        '<div class="map-popup-row">'+(l.size?l.size.toLocaleString()+' sqft':'')+' '+(l.price?'· £'+l.price.toLocaleString()+'/mo':'')+'</div>'+
-        scoreHtml+
-        (l.macro!==null?'<div style="font-size:10px;color:#666;margin-top:4px">Macro: '+l.macro+' · Micro: '+l.micro+'</div>':'')+
-        '<div class="map-popup-actions">'+
-          (l.url?'<a href="'+l.url+'" target="_blank" class="map-popup-btn lnk">View ↗</a>':'')+
-          (curTab==='inbox'
-            ?'<button class="map-popup-btn acc" onclick="mapAct(\''+l.id+'\',\'accepted\')">✓ Accept</button>'+
-              '<button class="map-popup-btn rej" onclick="mapAct(\''+l.id+'\',\'rejected\')">✗ Reject</button>'
-            :'<button class="map-popup-btn" onclick="mapAct(\''+l.id+'\',\'inbox\')" style="background:#f0f0f0;color:#333">↩ Restore</button>')+
-        '</div></div>',{maxWidth:260});
-      mk.on('click',function(){
-        document.querySelectorAll('#tbody tr').forEach(function(r){r.classList.remove('highlighted');});
-        var tr=document.getElementById('tr-'+l.id);
-        if(tr){tr.classList.add('highlighted');tr.scrollIntoView({behavior:'smooth',block:'nearest'});}
+    var sz=l.combined>=4?16:l.combined>=3?14:12;
+    var icon=L.divIcon({className:'',html:'<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+col+';border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35);cursor:pointer"></div>',iconSize:[sz,sz],iconAnchor:[Math.round(sz/2),Math.round(sz/2)]});
+    (function(lid,lcol){
+      var mk=L.marker([fl[0].lat,fl[0].lng],{icon:icon});
+      // find l again by closure
+      var ll=listings.find(function(x){return x.id===lid;});
+      if(!ll||!ll.lat||!ll.lng)return;
+      mk=L.marker([ll.lat,ll.lng],{icon:icon}).addTo(mapObj);
+      mk.on('click',function(e){
+        L.DomEvent.stopPropagation(e);
+        showDetail(lid);
       });
-      markers[l.id]=mk;
-    })(l,col);
+      markers[lid]=mk;
+    })(l.id,col);
   }
+  setTimeout(function(){mapObj.invalidateSize();},100);
 }
 window.mapAct=function(id,ns){action(id,ns);};
 

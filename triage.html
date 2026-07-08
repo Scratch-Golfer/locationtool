@@ -425,7 +425,11 @@ async function scoreOne(l){
       }
     }catch(e){console.warn('Geocode failed for',l.addr,e);}
   }
-  if(!pc||pc.length<5){l.macro_reasoning='Could not determine postcode';return false;}
+  if(!pc||pc.length<5){
+    l.macro_reasoning='Could not determine postcode';
+    if(l._dbId){try{await db.from('listings').update({macro_score_v2_reasoning:l.macro_reasoning}).eq('id',l._dbId);}catch(e){}}
+    return false;
+  }
   l.postcode=pc;
 
   // Step 2: Homedata macro score
@@ -438,7 +442,11 @@ async function scoreOne(l){
     console.log('Recalc from stored data (no API call):',pc);
   }else{
     d=await fetchHomedata(pc);
-    if(!d){l.macro_reasoning='Postcode not found in Homedata';return false;}
+    if(!d){
+      l.macro_reasoning='Postcode not found in Homedata';
+      if(l._dbId){try{await db.from('listings').update({macro_score_v2_reasoning:l.macro_reasoning}).eq('id',l._dbId);}catch(e){}}
+      return false;
+    }
   }
   var result=storedResult||calcMacroScore(d);
   var macroScore=result.score;
@@ -467,7 +475,12 @@ async function scoreAll(){
   var btn=document.getElementById('score-all-btn');
   var unscored=listings.filter(function(l){
     if(l.status==='rejected')return false;
-    if(l.macro===null)return true; // no score at all
+    if(l.macro===null){
+      // Skip listings that already failed once (reasoning set) to avoid retrying
+      // the same bad/missing postcode on every Auto-score-all run and burning API calls.
+      if(l.macro_reasoning)return false;
+      return true; // never attempted at all
+    }
     // Also re-score if missing abs_professionals or msoa_code
     try{
       var d=JSON.parse(l.macro_data||'{}');

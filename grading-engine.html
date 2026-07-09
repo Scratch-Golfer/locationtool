@@ -95,6 +95,18 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
   <div class="formula"><span class="c">Combined score</span> = Macro <span class="g">× 0.6</span> + Micro <span class="g">× 0.4</span></div>
   <p class="sub">Both scores run 1&ndash;5. A site never needs both to show a number — the combined score falls back to whichever one has run — but the full pipeline score always uses both.</p>
 
+  <h2><span class="eyebrow">Overview</span>Data sources</h2>
+  <table>
+    <tr><th>API</th><th>Data pulled</th><th>Use in engine</th></tr>
+    <tr><td><strong>Homedata</strong> — demographics endpoint</td><td>ONS Census 2021: population, occupation, age bands, tenure, per postcode/MSOA</td><td>Feeds 6 of the 7 macro signals — professionals, both age bands, private rent, social rent, absolute professionals</td></tr>
+    <tr><td><strong>Homedata</strong> — deprivation endpoint</td><td>MHCLG IMD 2019 deprivation score, rank and decile</td><td>Feeds the deprivation macro signal (22% weight)</td></tr>
+    <tr><td><strong>Google Maps Geocoding</strong></td><td>Postcode and lat/lng resolved from a free-text address</td><td>Fallback when a listing has no postcode — required before either macro or micro can run</td></tr>
+    <tr><td><strong>Google Places</strong> (Nearby Search)</td><td>Nearby venues, categories and review counts — 400m radius for context, 100m for the street itself</td><td>Micro score: Volume &amp; Intent components, plus the raw venue list Claude reads for Character</td></tr>
+    <tr><td><strong>Claude</strong> (via the Supabase <code>hyper-worker</code> edge function)</td><td>The assembled street name, venue list, and 400m context, passed as a prompt</td><td>Micro score: Character component — the only AI-judged part of either score</td></tr>
+    <tr><td><strong>Supabase</strong> (<code>postcode_data</code> table)</td><td>Caches each postcode's Homedata response</td><td>Not a scoring input — pure caching, so re-running a score for an already-seen postcode costs zero Homedata calls</td></tr>
+  </table>
+  <div class="note">The Homedata and Google API keys are currently embedded client-side in <code>triage.html</code>/<code>index.html</code> rather than proxied through a backend function. Worth knowing if either key ever needs rotating or usage-capping — anyone who opens dev tools on the live site can read them.</div>
+
   <h2><span class="eyebrow">Macro score</span>Demographic catchment</h2>
   <p>The macro score asks one question: does this postcode's <strong>MSOA</strong> (a Census geography of ~7,000&ndash;8,000 people) look like the neighbourhoods our members already live in? Seven signals are pulled for the postcode, each compared against a benchmark, then combined into a weighted score.</p>
 
@@ -143,19 +155,30 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
   <div class="note">The Character prompt is explicitly anchored on our own member research: <strong>41% of current members say they discovered their site by walking past it.</strong> That's the reason street-level visibility carries real weight here rather than being a minor tiebreaker — for this business, the street is a genuine acquisition channel, not just ambience.</div>
 
   <h2><span class="eyebrow">The benchmarks</span>Why Balham &amp; Wandsworth set the bar</h2>
-  <p>Every macro benchmark in the table above — 66% professionals, 40% aged 30&ndash;44, 7,100 absolute professionals, and so on — is the demographic profile of the MSOAs around our two live sites. A benchmark ratio of <strong>1.0 doesn't mean "good," it means "matches what we already know works."</strong> A site scoring above 1.0 on a signal is in a demographically stronger position than Balham or Wandsworth are today.</p>
-  <div class="two-col">
-    <div class="stat-card">
-      <div class="n">28&ndash;40</div>
-      <div class="l">Actual member age sweet spot (tighter than the original 25&ndash;40 assumption used to design the benchmarks)</div>
-    </div>
-    <div class="stat-card">
-      <div class="n">~1km</div>
-      <div class="l">Effective catchment radius from onboarding data — closer-in than the 15-minute-walk assumption originally used</div>
-    </div>
-  </div>
-  <p style="margin-top:14px">Member occupations cluster in <strong>Finance, Consulting, Sales and Software Engineering</strong> — consistent with the heavy weight on the "professionals" signal above.</p>
-  <div class="note"><strong>One asymmetry the score doesn't currently capture:</strong> Balham's members are drawn almost entirely from SW12 itself, while Wandsworth pulls from a much wider area — SW18, SW11 and SW4. A site that scores like Wandsworth may be viable with a wider, thinner catchment than one that scores like Balham. Worth keeping in mind when reading a macro score for sites near the Clapham/Battersea gap between the two.</div>
+  <p>Every macro benchmark is the <strong>blended average</strong> of live Homedata pulls for both sites' postcodes — Balham (SW12 9EL) and Wandsworth (SW18 1UP). A benchmark ratio of 1.0 doesn't mean "good," it means "matches what we already know works." Pulled fresh from the same Homedata endpoints the engine itself calls:</p>
+  <table>
+    <tr><th>Signal</th><th>Balham (SW12 9EL)</th><th>Wandsworth (SW18 1UP)</th><th>Blended avg.</th><th>Code benchmark</th></tr>
+    <tr><td>MSOA population</td><td>8,716</td><td>12,838</td><td>&mdash;</td><td>&mdash;</td></tr>
+    <tr><td>Professionals</td><td>64.6%</td><td>66.8%</td><td>65.7%</td><td class="num">66%</td></tr>
+    <tr><td>Age 30&ndash;44</td><td>37.6%</td><td>41.6%</td><td>39.6%</td><td class="num">40%</td></tr>
+    <tr><td>Age 16&ndash;29</td><td>26.7%</td><td>25.2%</td><td>25.9%</td><td class="num">26%</td></tr>
+    <tr><td>Private rent</td><td>38.7%</td><td>41.0%</td><td>39.8%</td><td class="num">39.8%</td></tr>
+    <tr><td>Social rent</td><td>5.5%</td><td>3.0%</td><td>4.25%</td><td class="num">4.25%</td></tr>
+    <tr><td>Abs. professionals</td><td>5,632</td><td>8,569</td><td>7,101</td><td class="num">7,100</td></tr>
+    <tr><td>Deprivation score</td><td>8 <span class="sub">(Low deprivation)</span></td><td>6 <span class="sub">(Below-avg deprivation)</span></td><td>7.0</td><td class="num" style="color:var(--red)">4 ⚠</td></tr>
+  </table>
+  <div class="note"><strong>Six of the seven benchmarks line up almost exactly</strong> with a live blended pull — reassuring confirmation the code constants were genuinely built from these two sites' real data, not guessed. The one exception is <strong>deprivation</strong>: the current code benchmark of 4 sits well below today's live blended figure of 7. In practice this means the deprivation signal is currently maxed out (step score 1.00) for almost any comparably affluent London site, since even a moderately-deprived-relative postcode clears a benchmark of 4 easily. Worth a deliberate decision — either the benchmark was set against an earlier Homedata scale that's since changed, or it was intentionally set as a low floor rather than a like-for-like average. Either way it's not currently doing much discriminating work at 22% weight.</div>
+
+  <h3>How this ties back to the onboarding form</h3>
+  <p>The benchmark table above answers "does this postcode look statistically like Balham or Wandsworth?" — but the onboarding form analysis (53 member responses) is what tells us <em>whether that's actually the right question</em>, and where the formula's current assumptions and real behaviour diverge:</p>
+  <table>
+    <tr><th>Onboarding finding</th><th>What it validates or challenges</th></tr>
+    <tr><td>Occupations cluster in <strong>Finance, Consulting, Sales, Software Engineering</strong></td><td><strong>Validates</strong> the 30% weight on Professionals — the single largest signal in the formula matches the single clearest pattern in the actual member base.</td></tr>
+    <tr><td>Age sweet spot is <strong>28&ndash;40</strong>, tighter than the original 25&ndash;40 design assumption</td><td><strong>Validates</strong> weighting Age 30&ndash;44 (12%) above Age 16&ndash;29 (8%) — most members sit inside the older band, not spread evenly across both.</td></tr>
+    <tr><td>Real catchment radius is <strong>~1km</strong>, not the "10&ndash;15 min walk" (~1.2&ndash;1.3km) the abs. professionals signal was scoped against</td><td><strong>Challenges</strong> the neighbourhood-professionals signal slightly — it may be counting a marginally wider ring than members actually travel from. A candidate for tightening once there's time to rebuild that MSOA-catchment query.</td></tr>
+    <tr><td>Balham draws almost entirely from SW12; Wandsworth draws from SW18, SW11 <em>and</em> SW4</td><td><strong>Challenges</strong> the formula more fundamentally — it scores a postcode's own demographics, not how far people are willing to travel to reach it. A site that demographically resembles Wandsworth may support a wider, thinner catchment than one resembling Balham, and nothing in the macro or micro score currently captures that difference.</td></tr>
+  </table>
+  <p class="sub">In short: the benchmark numbers are correctly calibrated against the two live sites' <em>areas</em>. The onboarding form is calibrated against the two live sites' <em>members</em> — and it's the second dataset that will matter most once we're evaluating Clapham/Battersea candidates that don't cleanly resemble either existing site.</p>
 
   <h2><span class="eyebrow">Worked example</span>Walking through a real calculation</h2>
   <p class="sub">Illustrative numbers below — not a live pipeline record — to show exactly how a score is built from raw inputs.</p>

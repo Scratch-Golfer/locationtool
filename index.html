@@ -1341,7 +1341,12 @@ async function runV2Macro(){
     g('v2-macro-summary').textContent=reasoning;
     g('v2-macro-signals').innerHTML=renderSignalTable(d);
     g('v2-macro-result').style.display='block';
-    await patchSite(curId,{macro_score_v2:score,macro_score_v2_reasoning:reasoning,macro_score_data:JSON.stringify(d)});
+    var saved=await patchSite(curId,{macro_score_v2:score,macro_score_v2_reasoning:reasoning,macro_score_data:JSON.stringify(d)});
+    if(!saved){
+      g('v2-progress').style.display='block';
+      svp(steps,2,'err','Score computed but FAILED TO SAVE - check console/DB column type');
+      console.error('patchSite failed to save macro score for site', curId);
+    }
     var s2=sites.find(function(x){return x.id===curId;});
     if(s2&&s2.micro_score_v2!=null){
       g('v2-combined-wrap').style.display='block';

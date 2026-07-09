@@ -149,6 +149,8 @@ input[type=checkbox]{width:13px;height:13px;cursor:pointer;accent-color:var(--bl
 </div>
 
 <div class="filterbar">
+  <input type="text" id="search-box" placeholder="Search address, agent…" oninput="render()" style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;font-family:inherit;width:220px;margin-right:4px">
+  <div class="sep"></div>
   <span class="fl">SOURCE</span>
   <button class="fb on" id="f-all" onclick="setSourceFilter('all')">All</button>
   <button class="fb" id="f-rightmove" onclick="setSourceFilter('rightmove')">Rightmove</button>
@@ -546,6 +548,9 @@ async function sendToProspecting(l){
 // FILTER + SORT
 function filtered(){
 
+  var searchEl=document.getElementById('search-box');
+  var q=searchEl?searchEl.value.trim().toLowerCase():'';
+
   return listings.filter(function(l){
     if(l.status!==curTab)return false;
     if(srcFilter!=='all'&&l.source!==srcFilter)return false;
@@ -554,6 +559,10 @@ function filtered(){
     var sqftMin=parseInt((document.getElementById('sqft-min')||{value:0}).value)||0;
     var sqftMax=parseInt((document.getElementById('sqft-max')||{value:5000}).value)||5000;
     if(l.size&&(l.size<sqftMin||l.size>sqftMax))return false;
+    if(q){
+      var hay=((l.addr||'')+' '+(l.agent||'')).toLowerCase();
+      if(hay.indexOf(q)===-1)return false;
+    }
     return true;
   });
 }
@@ -959,14 +968,24 @@ async function updateMap(){
     var col=scoreColor(l.combined);
     var sz=l.combined>=4?16:l.combined>=3?14:12;
     var icon=L.divIcon({className:'',html:'<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+col+';border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35);cursor:pointer"></div>',iconSize:[sz,sz],iconAnchor:[Math.round(sz/2),Math.round(sz/2)]});
-    (function(lid,llat,llng){
+    (function(lid,llat,llng,ll){
       var mk=L.marker([llat,llng],{icon:icon}).addTo(mapObj);
+      var md={};try{md=JSON.parse(ll.macro_data||'{}');}catch(e){}
+      var popupHtml='<div style="font-size:12px;line-height:1.5;min-width:160px">'
+        +'<strong>'+(ll.addr||'').replace(/</g,'&lt;')+'</strong><br>'
+        +(ll.combined!=null?'Score: <strong>'+ll.combined.toFixed(1)+'/5</strong><br>':'')
+        +(md.population!=null?'Population (MSOA): <strong>'+Math.round(md.population).toLocaleString()+'</strong><br>':'')
+        +(ll.msoa_code?'MSOA: <strong>'+ll.msoa_code+'</strong>':'')
+        +'</div>';
+      mk.bindPopup(popupHtml);
+      mk.on('mouseover',function(){mk.openPopup();});
+      mk.on('mouseout',function(){mk.closePopup();});
       mk.on('click',function(e){
         L.DomEvent.stopPropagation(e);
         showDetail(lid);
       });
       markers[lid]=mk;
-    })(l.id,l.lat,l.lng);
+    })(l.id,l.lat,l.lng,l);
   }
   setTimeout(function(){mapObj.invalidateSize();},100);
 }

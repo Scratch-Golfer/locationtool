@@ -862,23 +862,35 @@ async function uploadFloorplan(file){
   var statusEls=[g('fp-upload-status'),g('fp-upload-status-s1')];
   statusEls.forEach(function(el){if(el)el.textContent='Uploading\u2026';});
   try{
-    var dataUrl=await new Promise(function(res,rej){
-      var url=URL.createObjectURL(file);
-      var img=new Image();
-      img.onload=function(){
-        var MAX=3000,nw=img.naturalWidth,nh=img.naturalHeight;
-        if(nw>MAX){nh=Math.round(nh*MAX/nw);nw=MAX;}if(nh>MAX){nw=Math.round(nw*MAX/nh);nh=MAX;}
-        var c=document.createElement('canvas');c.width=nw;c.height=nh;
-        c.getContext('2d').drawImage(img,0,0,nw,nh);URL.revokeObjectURL(url);res(c.toDataURL('image/jpeg',0.95));
-      };
-      img.onerror=function(){URL.revokeObjectURL(url);rej(new Error('Could not load image'));};
-      img.src=url;
-    });
-    var arr=dataUrl.split(','),mime=arr[0].match(/:(.*?);/)[1];
-    var bstr=atob(arr[1]),n=bstr.length,u8=new Uint8Array(n);
-    while(n--)u8[n]=bstr.charCodeAt(n);
-    var blob=new Blob([u8],{type:mime});
-    var fname='fp_'+curId+'_'+Date.now()+'.jpg';
+    if(file.size>25*1024*1024){
+      throw new Error('File too large (max 25MB) - try a smaller export or a photo instead of a high-res scan');
+    }
+    var blob, ext;
+    if(file.type==='application/pdf'){
+      // PDFs are uploaded as-is, no image resize/compression needed or possible
+      blob=file;
+      ext='pdf';
+    }else{
+      var resizedBlob=await new Promise(function(res,rej){
+        var url=URL.createObjectURL(file);
+        var img=new Image();
+        img.onload=function(){
+          var MAX=3000,nw=img.naturalWidth,nh=img.naturalHeight;
+          if(nw>MAX){nh=Math.round(nh*MAX/nw);nw=MAX;}if(nh>MAX){nw=Math.round(nw*MAX/nh);nh=MAX;}
+          var c=document.createElement('canvas');c.width=nw;c.height=nh;
+          c.getContext('2d').drawImage(img,0,0,nw,nh);
+          URL.revokeObjectURL(url);
+          c.toBlob(function(b){
+            if(b)res(b);else rej(new Error('Could not process image'));
+          },'image/jpeg',0.95);
+        };
+        img.onerror=function(){URL.revokeObjectURL(url);rej(new Error('Could not load image - is this a valid JPG/PNG? PDFs are also supported.'));};
+        img.src=url;
+      });
+      blob=resizedBlob;
+      ext='jpg';
+    }
+    var fname='fp_'+curId+'_'+Date.now()+'.'+ext;
     var upRes=await db.storage.from('floorplans').upload(fname,blob,{upsert:false});
     if(upRes.error)throw new Error(upRes.error.message);
     var publicUrl=db.storage.from('floorplans').getPublicUrl(fname).data.publicUrl;
@@ -889,8 +901,11 @@ async function uploadFloorplan(file){
       fpUrl=publicUrl;
       statusEls.forEach(function(el){if(el)el.textContent='Uploaded successfully';});
       openDetail(curId);renderStats();renderList();
+    }else{
+      statusEls.forEach(function(el){if(el)el.textContent='Uploaded but failed to save - please retry';});
     }
   }catch(err){
+    console.error('Floorplan upload error:',err);
     statusEls.forEach(function(el){if(el)el.textContent='Failed: '+err.message;});
   }
 }

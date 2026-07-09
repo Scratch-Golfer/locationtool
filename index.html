@@ -327,7 +327,7 @@ textarea:focus{border-color:#3B6D11;}
             <div><div style="font-size:15px;font-weight:700">Macro score</div><div style="font-size:11px;color:#888">Demographic catchment quality &#xb7; benchmarked vs Balham + Wandsworth &#xb7; 1-5</div></div>
           </div>
           <div style="background:#f8f7f3;border-radius:6px;padding:12px 14px;font-size:13px;color:#444;line-height:1.7;margin-bottom:12px" id="v2-macro-summary"></div>
-          <div style="background:#f0f7e8;border:1px solid #c8e6a0;border-radius:6px;padding:10px 14px;font-size:11px;color:#2d5a0a;line-height:1.6;margin-bottom:14px"><strong>Benchmarks from Balham + Wandsworth.</strong> Ratio 1.00 = matches live sites. Professionals (35%) and Deprivation (25%) carry most weight.</div>
+          <div style="background:#f0f7e8;border:1px solid #c8e6a0;border-radius:6px;padding:10px 14px;font-size:11px;color:#2d5a0a;line-height:1.6;margin-bottom:14px"><strong>Benchmarks from Balham + Wandsworth.</strong> Ratio 1.00 = matches live sites. Professionals (30%) and Deprivation (22%) carry the most weight, with neighbourhood professional population adding a further 15%.</div>
           <div id="v2-macro-signals"></div>
         </div>
         <div id="v2-micro-result" style="display:none">
@@ -1316,23 +1316,6 @@ function svp(steps,cur,state,msg){
     return'<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;color:'+col+'"><span style="width:18px;height:18px;border-radius:50%;background:'+(d?'#e8f5e2':a&&state==='run'?'#fef9ec':a&&state==='err'?'#fdf0ee':'#f5f5f2')+';display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700">'+(d?'✓':a&&state==='err'?'✗':(i+1))+'</span>'+l+(a&&msg?' — '+msg:'')+'</div>';
   }).join('');
   }catch(e){console.error("svp error",e);}
-}function showV2Card(s){
-  if(!g('v2-scoring-card'))return;
-  if(s.macro_score_v2!=null){
-    g('v2-macro-bubble').textContent=s.macro_score_v2;g('v2-macro-bubble').className='score-bubble '+sc5(s.macro_score_v2);
-    var mrsn='<p style="margin-bottom:4px">'+(s.macro_score_v2_reasoning||'')+'</p>';
-    if(s.macro_score_data){try{mrsn+=renderMacroBreakdown(JSON.parse(s.macro_score_data));}catch(e){}}
-    g('v2-macro-reasoning').innerHTML=mrsn;
-    g('v2-macro-result').style.display='block';g('v2-macro-btn').textContent='Re-run macro score';
-  }
-  if(s.micro_score_v2!=null){
-    g('v2-micro-bubble').textContent=s.micro_score_v2;g('v2-micro-bubble').className='score-bubble '+sc5(s.micro_score_v2);
-    var irsn='<p style="margin-bottom:4px">'+(s.micro_score_v2_reasoning||'')+'</p>';
-    if(s.micro_score_data){try{var md=JSON.parse(s.micro_score_data);if(md.places)irsn+=renderVenueBreakdown(md.places);}catch(e){}}
-    g('v2-micro-reasoning').innerHTML=irsn;
-    g('v2-micro-result').style.display='block';g('v2-micro-btn').textContent='Re-run micro score';
-  }
-  if(s.macro_score_v2!=null&&s.micro_score_v2!=null){g('v2-combined-wrap').style.display='block';g('v2-combined-val').textContent=(+s.macro_score_v2*0.6+ +s.micro_score_v2*0.4).toFixed(1)+'/5';}
 }
 async function runV2Macro(){
   var s=sites.find(function(x){return x.id===curId;});if(!s)return;
@@ -1355,7 +1338,8 @@ async function runV2Macro(){
     g('v2-progress').style.display='none';
     g('v2-macro-bubble').textContent=score;
     g('v2-macro-bubble').className='score-bubble '+sc5(score);
-    g('v2-macro-reasoning').textContent=reasoning;
+    g('v2-macro-summary').textContent=reasoning;
+    g('v2-macro-signals').innerHTML=renderSignalTable(d);
     g('v2-macro-result').style.display='block';
     await patchSite(curId,{macro_score_v2:score,macro_score_v2_reasoning:reasoning,macro_score_data:JSON.stringify(d)});
     var s2=sites.find(function(x){return x.id===curId;});

@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Scratch Golf — Quick Search</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -72,6 +74,11 @@ table.sigtbl td{padding:7px 8px;border-bottom:1px solid #f0ede6;font-size:12px}
 .comp .l{font-size:9px;color:var(--text3);font-weight:700;letter-spacing:.05em}
 .comp .v{font-size:20px;font-weight:700;color:var(--green)}
 .comp .s{font-size:10px;color:var(--text2)}
+
+.pop-line{font-size:11px;color:var(--text2);margin:8px 0 2px}
+.map-block{display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:14px}
+.map-block-head{padding:10px 14px;font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--text3);border-bottom:1px solid var(--border)}
+#qs-map{height:280px;width:100%}
 </style>
 </head>
 <body>
@@ -120,6 +127,7 @@ table.sigtbl td{padding:7px 8px;border-bottom:1px solid #f0ede6;font-size:12px}
           <div class="score-reasoning" id="qs-macro-reasoning"></div>
         </div>
       </div>
+      <div class="pop-line" id="qs-macro-pop" style="display:none">MSOA population: <strong id="qs-macro-pop-val"></strong> residents</div>
       <div id="qs-macro-signals"></div>
     </div>
     <div class="score-block" id="qs-macro-fail" style="display:none">
@@ -137,6 +145,11 @@ table.sigtbl td{padding:7px 8px;border-bottom:1px solid #f0ede6;font-size:12px}
       </div>
       <div class="components" id="qs-micro-components"></div>
       <div id="qs-micro-venues"></div>
+    </div>
+
+    <div class="map-block" id="qs-map-block">
+      <div class="map-block-head">MAP</div>
+      <div id="qs-map"></div>
     </div>
   </div>
 </div>
@@ -204,6 +217,7 @@ async function runQuickSearch(){
   document.getElementById('qs-result').style.display='none';
   document.getElementById('qs-macro-block').style.display='none';
   document.getElementById('qs-macro-fail').style.display='none';
+  document.getElementById('qs-macro-pop').style.display='none';
   document.getElementById('qs-micro-block').style.display='none';
   var steps=['Locating address','Macro score (demographics)','Pulling nearby venues','Assessing street character'];
   svp(steps,0,'run','');
@@ -236,6 +250,10 @@ async function runQuickSearch(){
         document.getElementById('qs-macro-bubble').className='score-bubble '+sc5(macroScore);
         document.getElementById('qs-macro-reasoning').textContent=res.reasoning;
         document.getElementById('qs-macro-signals').innerHTML=renderSignalTable(d);
+        if(d.population!=null){
+          document.getElementById('qs-macro-pop-val').textContent=Math.round(d.population).toLocaleString();
+          document.getElementById('qs-macro-pop').style.display='block';
+        }
         document.getElementById('qs-macro-block').style.display='block';
         svp(steps,1,'done','Macro score '+macroScore+'/5');
       }else{
@@ -301,6 +319,7 @@ async function runQuickSearch(){
       combinedEl.className='combined-bubble '+sc5(ms);
     }
     document.getElementById('qs-result').style.display='block';
+    showResultOnMap(lat,lng,macroData&&macroData.msoa_code);
   }catch(e){
     document.getElementById('qs-progress').style.display='none';
     document.getElementById('qs-err').textContent=e.message;
@@ -310,6 +329,35 @@ async function runQuickSearch(){
 }
 
 document.getElementById('qs-addr').addEventListener('keydown',function(e){if(e.key==='Enter')runQuickSearch();});
+
+// Map — pin at the searched address, plus the MSOA boundary if we have a macro score
+var mapObj=null,_marker=null,_msoaLayer=null;
+function initMap(){
+  if(mapObj)return;
+  mapObj=L.map('qs-map',{zoomControl:true}).setView([51.505,-0.09],11);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
+    attribution:'&copy; OpenStreetMap contributors &copy; CARTO',subdomains:'abcd',maxZoom:19
+  }).addTo(mapObj);
+}
+async function showResultOnMap(lat,lng,msoaCode){
+  document.getElementById('qs-map-block').style.display='block';
+  initMap();
+  setTimeout(function(){mapObj.invalidateSize();},50);
+  if(_marker){mapObj.removeLayer(_marker);_marker=null;}
+  if(_msoaLayer){mapObj.removeLayer(_msoaLayer);_msoaLayer=null;}
+  _marker=L.marker([lat,lng]).addTo(mapObj);
+  mapObj.setView([lat,lng],15);
+  if(!msoaCode)return;
+  try{
+    var url='https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/Middle_layer_Super_Output_Areas_December_2021_Boundaries_EW_BGC_V3/FeatureServer/0/query?where=MSOA21CD%3D%27'+msoaCode+'%27&outFields=MSOA21CD,MSOA21NM&f=geojson';
+    var r=await fetch(url);
+    var gj=await r.json();
+    if(gj.features&&gj.features.length){
+      _msoaLayer=L.geoJSON(gj,{style:{color:'#3B6D11',weight:2.5,fillColor:'#3B6D11',fillOpacity:0.12,dashArray:'4 4'}}).addTo(mapObj);
+      mapObj.flyToBounds(_msoaLayer.getBounds(),{padding:[20,20],maxZoom:14,duration:0.8});
+    }
+  }catch(e){console.warn('MSOA boundary failed:',e);}
+}
 </script>
 </body>
 </html>

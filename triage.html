@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="macro-scoring.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -131,6 +132,7 @@ input[type=checkbox]{width:13px;height:13px;cursor:pointer;accent-color:var(--bl
   <a href="triage.html" class="active">Site Triage</a>
   <a href="index.html">Location Pipeline</a>
   <a href="grading-engine.html">Grading Engine</a>
+  <a href="quick-search.html">Quick Search</a>
 </nav>
 
 <div class="topbar">
@@ -324,70 +326,8 @@ function isFullPostcode(pc){
 
 var GK='AIzaSyD7t9mpKJpMACotkzGWJ3kTsjX_81R-E-g';
 var HK='EyVRzn5O.UePfMTpM7rldFJL55Do9PeyzrEE1METa';
-var BENCH={professionals:66,age_30_44:40,age_16_29:26,private_rent:39.8,social_rent:4.25,deprivation:4,abs_professionals:7100};
-var WEIGHTS={professionals:.30,age_30_44:.12,age_16_29:.08,deprivation:.22,private_rent:.08,social_rent:.05,abs_professionals:.15};
-var THR=[[1.10,1.00],[0.90,0.80],[0.75,0.55],[0.55,0.30],[0.00,0.05]];
-
-// Postcode cache — avoids duplicate Homedata calls within a session
-var _pcCache={};
-
-async function fetchHomedata(pc){
-  var key=pc.trim().toUpperCase().replace(/\s+/g,'');
-  // 1. Session cache
-  if(_pcCache[key])return _pcCache[key];
-  // 2. Supabase postcode_data table
-  try{
-    var{data:stored}=await db.from('postcode_data').select('demographics').eq('postcode',key).single();
-    if(stored&&stored.demographics){
-      _pcCache[key]=stored.demographics;
-      return stored.demographics;
-    }
-  }catch(e){}
-  // 3. Homedata API (last resort)
-  var ep=encodeURIComponent(pc);
-  var[dr,pr]=await Promise.all([
-    fetch('https://api.homedata.co.uk/api/demographics/?postcode='+ep,{headers:{'Authorization':'Api-Key '+HK}}),
-    fetch('https://api.homedata.co.uk/api/deprivation/?postcode='+ep,{headers:{'Authorization':'Api-Key '+HK}})
-  ]);
-  var dem=await dr.json();var dep=await pr.json();
-  if(dem.error)return null;
-  var pop=parseFloat((dem.population||{}).total||0);
-  var _msoaCode=(dem.geography||{}).msoa_code||null;
-  var d={
-    professionals:parseFloat((dem.occupation||{}).managerial_professional_pct||0),
-    age_30_44:parseFloat((dem.age||{}).age_30_44_pct||0),
-    age_16_29:parseFloat((dem.age||{}).age_16_29_pct||0),
-    private_rent:parseFloat((dem.tenure||{}).private_rented_pct||0),
-    social_rent:parseFloat((dem.tenure||{}).social_rented_pct||0),
-    deprivation:parseFloat(((dep.overall)||{}).score||4),
-    population:pop,// MSOA-level population
-    abs_professionals:Math.round(pop*(parseFloat((dem.occupation||{}).managerial_professional_pct||0)/100)),
-    msoa_code:_msoaCode
-  };
-  // Save to postcode_data table for future use
-  try{
-    await db.from('postcode_data').upsert({postcode:key,demographics:d,msoa_code:(_msoaCode||null),fetched_at:new Date().toISOString()});
-  }catch(e){console.warn('Failed to save postcode_data:',e);}
-  _pcCache[key]=d;
-  return d;
-}
-
-function calcMacroScore(d){
-  var W=cmw(d);
-  var score=Math.min(5,Math.max(1,Math.round((1+W*4)*10)/10));
-  var rsn='Professionals '+d.professionals.toFixed(0)+'% ('+(d.professionals>=59?'above':'below')+' 66% bench). Age 25-44: '+(d.age_30_44+d.age_16_29).toFixed(0)+'%. Social rent: '+d.social_rent.toFixed(1)+'%.';
-  return{score:score,reasoning:rsn,data:d};
-}
-
-function recalcFromStoredData(storedJson){
-  // Recalculate score from stored macro_score_data without any API call
-  try{
-    var d=JSON.parse(storedJson);
-    if(!d||!d.professionals)return null;
-    return calcMacroScore(d);
-  }catch(e){return null;}
-}
-
+// BENCH, WEIGHTS, THR, fetchHomedata, calcMacroScore, recalcFromStoredData, gss, cmw
+// now live in macro-scoring.js (shared with index.html) — see <script src="macro-scoring.js"> in <head>
 
 function updateSqftLabel(){
   var mn=parseInt(document.getElementById('sqft-min').value)||0;
@@ -397,9 +337,6 @@ function updateSqftLabel(){
   document.getElementById('sqft-min-lbl').textContent=mn?mn.toLocaleString():'0';
   document.getElementById('sqft-max-lbl').textContent=mx>=5000?'any':mx.toLocaleString();
 }
-
-function gss(r){for(var i=0;i<THR.length;i++)if(r>=THR[i][0])return THR[i][1];return 0.05;}
-function cmw(d){var W=0,usedWt=0;Object.keys(WEIGHTS).forEach(function(k){var v=d[k];if(v==null)return;var b=BENCH[k];W+=WEIGHTS[k]*gss(k!=='social_rent'?(v/b):(b/Math.max(v,0.1)));usedWt+=WEIGHTS[k];});return usedWt>0?W/usedWt:0;}
 
 async function scoreOne(l){
   // Step 1: get postcode via geocoding if missing

@@ -1559,7 +1559,7 @@ function savePropFields(){
 
 var SIGNALS_DEF=[
   {key:'professionals',label:'Professionals',desc:'% managerial/professional — core member profile',bench:66,sfx:'%',weight:'30%'},
-  {key:'abs_professionals',label:'Neighbourhood professionals',desc:'Absolute no. of professionals in MSOA catchment (~10-15 min walk)',bench:7100,sfx:'',weight:'15%'},
+  {key:'abs_professionals',label:'Neighbourhood professionals',desc:'Absolute no. of professionals in MSOA catchment (~10-15 min walk)',bench:7100,sfx:'',weight:'15%',isInt:true},
   {key:'age_30_44',label:'Age 30-44',desc:'Primary target age band',bench:40,sfx:'%',weight:'12%'},
   {key:'age_16_29',label:'Age 16-29',desc:'Secondary age band — younger professionals',bench:26,sfx:'%',weight:'8%'},
   {key:'deprivation',label:'Deprivation',desc:'IMD /10 (10=least deprived)',bench:4,sfx:'',weight:'22%'},
@@ -1578,9 +1578,11 @@ function renderSignalTable(d){
     else{interp=ratio>=1.0?'Meets benchmark':ratio>=0.75?'Within 25% of benchmark':'Below benchmark';}
     var barPct=Math.min(ratio/1.5,1)*100;
     var barCol=ratio>=1.0?'#5CB81F':ratio>=0.75?'#E8A020':'#E05030';
+    var vDisp=sig.isInt?Math.round(v).toLocaleString():v.toFixed(1);
+    var bDisp=sig.isInt?sig.bench.toLocaleString():sig.bench;
     return'<tr style="border-bottom:1px solid #f0ede6">'
       +'<td style="padding:9px 10px"><div style="font-weight:600;font-size:12px">'+sig.label+' <span style="font-weight:400;font-size:10px;color:#aaa">'+sig.weight+'</span></div><div style="font-size:10px;color:#888;margin-top:1px">'+sig.desc+'</div><div style="font-size:10px;color:#555;font-style:italic;margin-top:2px">'+interp+'</div></td>'
-      +'<td style="padding:9px 10px;text-align:right;white-space:nowrap"><div style="font-size:16px;font-weight:700">'+v.toFixed(1)+sig.sfx+'</div><div style="font-size:10px;color:#888">bench '+sig.bench+sig.sfx+'</div></td>'
+      +'<td style="padding:9px 10px;text-align:right;white-space:nowrap"><div style="font-size:16px;font-weight:700">'+vDisp+sig.sfx+'</div><div style="font-size:10px;color:#888">bench '+bDisp+sig.sfx+'</div></td>'
       +'<td style="padding:9px 10px;text-align:center"><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:'+rb+';color:'+rc+'">'+ratio.toFixed(2)+'x</span></td>'
       +'<td style="padding:9px 14px;min-width:90px"><div style="height:6px;border-radius:3px;background:#eae9e4;overflow:hidden"><div style="height:100%;width:'+barPct.toFixed(0)+'%;background:'+barCol+';border-radius:3px"></div></div></td>'
     +'</tr>';

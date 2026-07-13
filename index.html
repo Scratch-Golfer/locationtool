@@ -685,9 +685,11 @@ async function loadSites(){
   sites=r.data||[];renderStats();renderList();
 }
 async function patchSite(id,patch){
-  var r=await db.from('sites').update(patch).eq('id',id);
-  if(!r.error){var i=sites.findIndex(function(s){return s.id===id;});if(i!==-1)Object.assign(sites[i],patch);}
-  return!r.error;
+  var r=await db.from('sites').update(patch).eq('id',id).select();
+  if(r.error){console.error('patchSite error:',r.error);return false;}
+  if(!r.data||!r.data.length){console.error('patchSite: update matched 0 rows for site',id,'- check RLS UPDATE policy on the sites table, or that this id exists');return false;}
+  var i=sites.findIndex(function(s){return s.id===id;});if(i!==-1)Object.assign(sites[i],patch);
+  return true;
 }
 
 // List

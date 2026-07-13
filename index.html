@@ -360,13 +360,7 @@ textarea:focus{border-color:#3B6D11;}
             <button class="ghost-btn" id="btn-sv-p0">Save</button>
             <span id="p0-ok" style="font-size:12px;color:#3B6D11;display:none;">Saved</span>
           </div>
-          <div>
-            <label class="field-lbl">Floor plan upload</label>
-            <div class="field-note">Upload to automatically move this site to Stage 1</div>
-            <label class="ghost-btn" for="fp-upload-in" id="fp-upload-lbl" style="cursor:pointer;display:inline-block;">Upload floor plan</label>
-            <input type="file" id="fp-upload-in" accept=".jpg,.jpeg,.png,.pdf" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;">
-            <span id="fp-upload-status" style="font-size:12px;color:#888;margin-left:8px;"></span>
-          </div>
+          <input type="file" id="fp-upload-in" accept=".jpg,.jpeg,.png,.pdf" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;">
           <div class="divider"></div>
           <button class="btn-accept" id="btn-advance-p0">Move to Stage 1 &mdash; Floor plan &#8594;</button>
         </div>
@@ -576,6 +570,29 @@ var SUPABASE_ANON_KEY='sb_publishable_HYuBeJEs2OuKiIUOym5Fbw_55TfnxAH';
 
 var EDGE_FN=SUPABASE_URL+'/functions/v1/hyper-worker';
 var db=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+
+// Global error banner: surface uncaught errors visibly instead of a silent white screen
+(function(){
+  var banner=null;
+  function showBanner(msg){
+    if(!banner){
+      banner=document.createElement('div');
+      banner.style.cssText='position:fixed;bottom:0;left:0;right:0;background:#8B2020;color:#fff;font:12px/1.5 -apple-system,sans-serif;padding:10px 14px;z-index:99999;white-space:pre-wrap;max-height:40vh;overflow:auto;';
+      document.body.appendChild(banner);
+    }
+    var line=document.createElement('div');
+    line.textContent='['+new Date().toLocaleTimeString()+'] '+msg;
+    banner.appendChild(line);
+  }
+  window.addEventListener('error',function(e){
+    console.error('Uncaught error:',e.error||e.message);
+    showBanner('Error: '+(e.message||'unknown')+' ('+(e.filename||'')+':'+(e.lineno||'')+')');
+  });
+  window.addEventListener('unhandledrejection',function(e){
+    console.error('Unhandled promise rejection:',e.reason);
+    showBanner('Unhandled promise rejection: '+(e.reason&&e.reason.message?e.reason.message:e.reason));
+  });
+})();
 var sites=[],filterMode='all',curId=null;
 var seenIds=new Set(JSON.parse(localStorage.getItem('sg_seen')||'[]'));
 var selectedReasons=[];
@@ -861,6 +878,7 @@ g('btn-advance-p0').addEventListener('click',async function(){
 var brochureFile=null;
 async function uploadFloorplan(file){
   if(!curId||!file)return;
+  console.log('[floorplan] start',{name:file.name,type:file.type,size:file.size,curId:curId});
   var statusEls=[g('fp-upload-status'),g('fp-upload-status-s1')];
   statusEls.forEach(function(el){if(el)el.textContent='Uploading\u2026';});
   try{
@@ -873,10 +891,12 @@ async function uploadFloorplan(file){
       blob=file;
       ext='pdf';
     }else{
+      console.log('[floorplan] resizing image');
       var resizedBlob=await new Promise(function(res,rej){
         var url=URL.createObjectURL(file);
         var img=new Image();
         img.onload=function(){
+          console.log('[floorplan] image loaded',img.naturalWidth,'x',img.naturalHeight);
           var MAX=3000,nw=img.naturalWidth,nh=img.naturalHeight;
           if(nw>MAX){nh=Math.round(nh*MAX/nw);nw=MAX;}if(nh>MAX){nw=Math.round(nw*MAX/nh);nh=MAX;}
           var c=document.createElement('canvas');c.width=nw;c.height=nh;
@@ -891,17 +911,22 @@ async function uploadFloorplan(file){
       });
       blob=resizedBlob;
       ext='jpg';
+      console.log('[floorplan] resized blob size',blob.size);
     }
     var fname='fp_'+curId+'_'+Date.now()+'.'+ext;
+    console.log('[floorplan] uploading to storage',fname);
     var upRes=await db.storage.from('floorplans').upload(fname,blob,{upsert:false});
     if(upRes.error)throw new Error(upRes.error.message);
+    console.log('[floorplan] storage upload ok, getting public URL');
     var publicUrl=db.storage.from('floorplans').getPublicUrl(fname).data.publicUrl;
     var curStage=siteStage(sites.find(function(s){return s.id===curId;})||{});
     var newStage=Math.max(curStage,1);
+    console.log('[floorplan] patching site',curId,'stage',newStage);
     var ok=await patchSite(curId,{floorplan_url:publicUrl,stage:newStage,status:'active'});
     if(ok){
       fpUrl=publicUrl;
       statusEls.forEach(function(el){if(el)el.textContent='Uploaded successfully';});
+      console.log('[floorplan] done, re-rendering detail view');
       openDetail(curId);renderStats();renderList();
     }else{
       statusEls.forEach(function(el){if(el)el.textContent='Uploaded but failed to save - please retry';});
@@ -912,8 +937,12 @@ async function uploadFloorplan(file){
   }
 }
 g('fp-upload-in').addEventListener('change',function(e){
-  var f=e.target.files[0];if(!f)return;
-  uploadFloorplan(f);e.target.value='';
+  try{
+    var f=e.target.files[0];if(!f)return;
+    uploadFloorplan(f);e.target.value='';
+  }catch(err){
+    console.error('[floorplan] change handler error:',err);
+  }
 });
 
 // Stage 1 bays

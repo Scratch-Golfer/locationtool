@@ -327,9 +327,10 @@ function isFullPostcode(pc){
 }
 
 var GK='AIzaSyD7t9mpKJpMACotkzGWJ3kTsjX_81R-E-g';
-var HK='EyVRzn5O.UePfMTpM7rldFJL55Do9PeyzrEE1METa';
-// BENCH, WEIGHTS, THR, fetchHomedata, calcMacroScore, recalcFromStoredData, gss, cmw
-// now live in macro-scoring.js (shared with index.html) — see <script src="macro-scoring.js"> in <head>
+var HK='EyVRzn5O.UePfMTpM7rldFJL55Do9PeyzrEE1METa'; // no longer used here — Homedata calls now happen inside the score-macro Edge Function
+// scoreMacroRemote() now lives in macro-scoring.js (shared with index.html/quick-search.html)
+// — it calls the shared `score-macro` Supabase Edge Function rather than scoring locally.
+// See <script src="macro-scoring.js"> in <head>.
 
 function updateSqftLabel(){
   var mn=parseInt(document.getElementById('sqft-min').value)||0;
@@ -378,23 +379,15 @@ async function scoreOne(l){
   }
   l.postcode=pc;
 
-  // Step 2: Homedata macro score
-  var ep=encodeURIComponent(pc);
-  // Check stored data first — avoid API call if we already have demographics
-  var storedResult=recalcFromStoredData(l.macro_data||'');
-  var d=null;
-  if(storedResult){
-    d=storedResult.data;
-    console.log('Recalc from stored data (no API call):',pc);
-  }else{
-    d=await fetchHomedata(pc);
-    if(!d){
-      l.macro_reasoning='Postcode not found in Homedata';
-      if(l._dbId){try{await db.from('listings').update({macro_score_v2_reasoning:l.macro_reasoning}).eq('id',l._dbId);}catch(e){}}
-      return false;
-    }
+  // Step 2: Homedata macro score — via the shared score-macro function (checks the
+  // postcode_data cache first, so this costs nothing extra vs. before if already cached)
+  var result=await scoreMacroRemote(pc);
+  if(!result){
+    l.macro_reasoning='Postcode not found in Homedata';
+    if(l._dbId){try{await db.from('listings').update({macro_score_v2_reasoning:l.macro_reasoning}).eq('id',l._dbId);}catch(e){}}
+    return false;
   }
-  var result=storedResult||calcMacroScore(d);
+  var d=result.data;
   var macroScore=result.score;
   var rsn=result.reasoning;
 

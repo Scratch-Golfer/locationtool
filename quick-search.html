@@ -242,13 +242,13 @@ async function runQuickSearch(){
       if(pcComp)pc=pcComp.long_name;
     }
     if(pc){
-      var d=await fetchHomedata(pc);
-      if(d){
-        var res=calcMacroScore(d);
-        macroScore=res.score;macroData=d;
+      var result=await scoreMacroRemote(pc);
+      if(result){
+        var d=result.data;
+        macroScore=result.score;macroData=d;
         document.getElementById('qs-macro-bubble').textContent=macroScore;
         document.getElementById('qs-macro-bubble').className='score-bubble '+sc5(macroScore);
-        document.getElementById('qs-macro-reasoning').textContent=res.reasoning;
+        document.getElementById('qs-macro-reasoning').textContent=result.reasoning;
         document.getElementById('qs-macro-signals').innerHTML=renderSignalTable(d);
         if(d.population!=null){
           document.getElementById('qs-macro-pop-val').textContent=Math.round(d.population).toLocaleString();

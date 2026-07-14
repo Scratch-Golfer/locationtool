@@ -1259,8 +1259,9 @@ function renderVenueBreakdown(places){
 }
 
 
-// fetchHomedata, calcMacroScore, recalcFromStoredData, gss, cmw
-// now live in macro-scoring.js (shared with triage.html) — see <script src="macro-scoring.js"> in <head>
+// scoreMacroRemote() now lives in macro-scoring.js (shared with triage.html/quick-search.html)
+// — it calls the shared `score-macro` Supabase Edge Function rather than scoring locally.
+// See <script src="macro-scoring.js"> in <head>.
 
 function sc5(v){return v>=4?'score-high':v>=3?'score-mid':'score-low';}
 function svp(steps,cur,state,msg){
@@ -1280,14 +1281,14 @@ async function runV2Macro(){
   var btn=g('v2-macro-btn');btn.disabled=true;btn.textContent='Running...';
   var steps=['Checking cache / fetching demographics','Fetching deprivation','Computing score'];svp(steps,0,'run','');
   try{
-    // Uses the shared, cached fetchHomedata() — checks session cache then postcode_data
-    // table before ever hitting the Homedata API, so re-running this for an
-    // already-scored postcode costs zero API calls.
-    var d=await fetchHomedata(pc);
-    if(!d){throw new Error('Postcode not found in Homedata');}
+    // Uses the shared score-macro Edge Function — checks the postcode_data cache before
+    // ever hitting Homedata, so re-running this for an already-scored postcode costs
+    // zero Homedata calls (just one fast Supabase round trip).
+    var result=await scoreMacroRemote(pc);
+    if(!result){throw new Error('Postcode not found in Homedata');}
     svp(steps,1,'done','');
     svp(steps,2,'run','');
-    var result=calcMacroScore(d);
+    var d=result.data;
     var score=result.score;
     var reasoning=result.reasoning;
     svp(steps,2,'done','Score '+score+'/5');
@@ -1484,12 +1485,13 @@ async function runBatchScore(){
           }catch(e){}
         }
         if(pc){
-          // Use stored data or cache — avoid duplicate API calls
-          var _bs=recalcFromStoredData(s.macro_score_data||'');
-          var d=_bs?_bs.data:await fetchHomedata(pc);
-          if(d){
-            var W=cmw(d);var macroSc=Math.min(5,Math.max(1,Math.round(1+W*4)));
-            var rsn=[d.professionals>=59?'Professional density ('+d.professionals.toFixed(0)+'%) close to benchmark.':'Professional density ('+d.professionals.toFixed(0)+'%) below 66% benchmark.',(d.age_30_44+d.age_16_29)>=58?'Strong 25-44 age ('+(d.age_30_44+d.age_16_29).toFixed(0)+'% combined).':'25-44 age at '+(d.age_30_44+d.age_16_29).toFixed(0)+'%.',d.deprivation>=3.4?'Deprivation ('+d.deprivation+'/10) consistent.':'Deprivation ('+d.deprivation+'/10) below benchmark.'].join(' ');
+          // Use the shared score-macro function — checks the postcode_data cache first,
+          // so this costs nothing extra for a postcode already scored elsewhere
+          var result=await scoreMacroRemote(pc);
+          if(result){
+            var d=result.data;
+            var macroSc=Math.round(result.score);
+            var rsn=result.reasoning;
             await patchSite(s.id,{macro_score_v2:macroSc,macro_score_v2_reasoning:rsn,macro_score_data:JSON.stringify(d)});
             s.macro_score_v2=macroSc;s.macro_score_v2_reasoning=rsn;
           }else{

@@ -101,6 +101,7 @@ td.addr-cell{max-width:150px;white-space:normal;line-height:1.3}
 .act.acc{color:var(--green)}.act.acc:hover{background:var(--green-bg)}
 .act.rej{color:var(--red)}.act.rej:hover{background:var(--red-bg)}
 .act.rst{color:var(--text2)}.act.rst:hover{background:var(--bg)}
+.act.score{color:var(--amber)}.act.score:hover{background:#fef9ec}
 .date-cell{font-size:10px;color:var(--text3);white-space:nowrap}
 .poa{color:var(--text3);font-size:11px}
 input[type=checkbox]{width:13px;height:13px;cursor:pointer;accent-color:var(--blue)}
@@ -196,6 +197,7 @@ input[type=checkbox]{width:13px;height:13px;cursor:pointer;accent-color:var(--bl
   <span id="bulk-label">0 selected</span>
   <button class="bb success" onclick="bulkAction('accepted')">✓ Accept all → Pipeline</button>
   <button class="bb danger" onclick="bulkAction('rejected')">✗ Reject all</button>
+  <button class="bb" onclick="scoreSelected()">⚡ Score selected</button>
   <button class="bb" onclick="clearSel()">Clear</button>
 </div>
 
@@ -446,6 +448,41 @@ async function scoreAll(){
   btn.disabled=false;
   toast(scoringCancelled?'Scoring cancelled':'✓ All listings scored');
 }
+
+async function scoreOneRow(id){
+  var l=listings.find(function(x){return x.id===id;});
+  if(!l)return;
+  toast('Scoring '+l.addr+'…');
+  try{
+    await scoreOne(l);
+  }catch(e){
+    console.warn('Score failed',l.addr,e);
+    toast('Error scoring '+l.addr+': '+e.message);
+    return;
+  }
+  render();updateMap();
+  toast(l.macro!=null?'✓ Scored '+l.addr+' — '+l.macro+'/5':'Could not score '+l.addr);
+}
+
+async function scoreSelected(){
+  var sel=listings.filter(function(l){return l.selected;});
+  if(!sel.length){toast('Nothing selected');return;}
+  scoringCancelled=false;
+  scoringTotal=sel.length;scoringDone=0;
+  document.getElementById('score-progress').style.display='flex';
+  for(var i=0;i<sel.length;i++){
+    if(scoringCancelled)break;
+    var l=sel[i];
+    document.getElementById('score-prog-text').textContent='Scoring '+(scoringDone+1)+' / '+scoringTotal+'… '+l.addr;
+    document.getElementById('prog-fill').style.width=((scoringDone/scoringTotal)*100)+'%';
+    try{await scoreOne(l);}catch(e){console.warn('Score failed',l.addr,e);toast('Error scoring '+l.addr+': '+e.message);}
+    scoringDone++;
+    render();updateMap();
+  }
+  document.getElementById('score-progress').style.display='none';
+  document.getElementById('prog-fill').style.width='100%';
+  toast(scoringCancelled?'Scoring cancelled':'✓ Selected listings scored');
+}
 function cancelScoring(){scoringCancelled=true;}
 
 // ACCEPT → INSERT INTO SUPABASE PROSPECTING
@@ -604,6 +641,7 @@ function render(){
       }()):'')+
       '<td class="action-cell" onclick="event.stopPropagation()">'+
         (l.url?'<a href="'+l.url+'" target="_blank" style="color:var(--blue);font-size:11px;margin-right:4px" title="View listing">↗</a>':'')+
+        '<button class="act score" onclick="scoreOneRow(\''+l.id+'\')" title="Run macro score">⚡</button>'+
         (curTab==='inbox'
           ?'<button class="act acc" onclick="action(\''+l.id+'\',\'enquiry\')" title="→ Enquiry">→</button>'+
             '<button class="act rej" onclick="action(\''+l.id+'\',\'rejected\')">✗</button>'

@@ -95,6 +95,7 @@ td.addr-cell{max-width:150px;white-space:normal;line-height:1.3}
 .sl{background:var(--score-lo-bg);color:var(--score-lo)}
 .sn{background:var(--bg);color:var(--text3);font-size:10px}
 .src{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid var(--border);color:var(--text2);white-space:nowrap}
+.auto-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:1px 5px;margin-left:4px;border-radius:4px;background:#EAF3E4;color:#3B6D11;white-space:nowrap}
 .action-cell{white-space:nowrap}
 .act{border:none;background:transparent;cursor:pointer;padding:2px 7px;border-radius:var(--radius);font-size:11px;transition:all .12s}
 .act.acc{color:var(--green)}.act.acc:hover{background:var(--green-bg)}
@@ -257,7 +258,8 @@ async function loadListings(){
       agent:(r.agency_name||'').replace(/&amp;/g,'&').replace(/&#38;/g,'&').replace(/\\u0026/g,'&'),
       source:r.source||'rightmove',
       url:r.listing_url||'',
-      date:r.submitted_at?r.submitted_at.split('T')[0]:'',
+      date:r.submitted_at||'',
+      ingested_via:r.ingested_via||null,
       notes:r.notes||'',
       macro:(function(){try{var d=JSON.parse(r.macro_score_data||'{}');return d.decimal_score!=null?d.decimal_score:r.macro_score_v2;}catch(e){return r.macro_score_v2;}}()),
       msoa_code:(function(){try{var d=JSON.parse(r.macro_score_data||'{}');return d.msoa_code||null;}catch(e){return null;}}()),
@@ -526,7 +528,10 @@ function scoreLabel(v){if(v===null||v===undefined)return '—';return parseFloat
 function ppsfStr(l){if(!l.price||!l.size)return '<span class="poa">—</span>';return '£'+Math.round(l.price/l.size);}
 function priceStr(l){if(!l.price)return '<span class="poa">POA</span>';return '£'+l.price.toLocaleString();}
 function fmtDate(iso){
-  var d=new Date(iso),now=new Date(),diff=Math.round((now-d)/(1000*60*60*24));
+  var d=new Date(iso),now=new Date();
+  var d0=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+  var n0=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  var diff=Math.round((n0-d0)/(1000*60*60*24));
   if(diff===0)return 'Today';if(diff===1)return 'Yesterday';
   if(diff<7)return diff+'d ago';
   return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
@@ -585,7 +590,7 @@ function render(){
       '<td><span class="sp '+scoreClass(l.macro)+'" title="'+(l.macro_reasoning||'Not scored')+'">'+scoreLabel(l.macro)+'</span></td>'+
       '<td><span class="sp '+scoreClass(l.micro)+'" title="'+(l.micro_reasoning||'Not scored')+'">'+scoreLabel(l.micro)+'</span></td>'+
       '<td><strong style="font-size:13px">'+scoreLabel(l.combined)+'</strong>'+(l.combined!==null?'<span style="font-size:10px;color:var(--text3)">/5</span>':'')+'</td>'+
-      '<td>'+srcTag(l.source)+'</td>'+
+      '<td>'+srcTag(l.source)+(l.ingested_via?'<span class="auto-badge" title="Auto-ingested via '+l.ingested_via+'">\u2709 Auto</span>':'')+'</td>'+
       '<td class="date-cell">'+fmtDate(l.date)+'</td>'+
       '<td style="font-size:11px;color:var(--text2);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+l.agent+'</td>'+
       (curTab==='enquiry'?(function(){

@@ -361,8 +361,11 @@ async function scoreOne(l){
         res.address_components.forEach(function(c){
           if(c.types.includes('postal_code'))pc=c.long_name;
         });
-        // If no postcode, do a reverse geocode at the coords
-        if(!pc){
+        // If no postcode, OR only a district-only code (e.g. 'KT4' with no inward part —
+        // common when forward-geocoding a vague road name), do a reverse geocode at the
+        // coords specifically asking for a full postal_code result.
+        var pcIsFull=pc&&/^[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}$/i.test(pc.trim());
+        if(!pcIsFull){
           var revR=await fetch('https://maps.googleapis.com/maps/api/geocode/json?latlng='+lat+','+lng+'&result_type=postal_code&key='+GK);
           var revD=await revR.json();
           if(revD.status==='OK'&&revD.results.length){

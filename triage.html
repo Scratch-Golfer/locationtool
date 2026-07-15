@@ -166,6 +166,7 @@ input[type=checkbox]{width:13px;height:13px;cursor:pointer;accent-color:var(--bl
   <span class="fl">SCORE</span>
   <button class="fb" id="f-scored" onclick="toggleFilter('scored')">Scored only</button>
   <button class="fb" id="f-hi" onclick="toggleFilter('hi')">3.5+ ★</button>
+  <button class="fb" id="f-dup" onclick="toggleFilter('dup')">⚠ Duplicates</button>
   <div class="sep"></div>
   <span class="fl">SORT</span>
   <select class="fsort" id="sort-sel" onchange="applySort()">
@@ -263,6 +264,7 @@ async function loadListings(){
       url:r.listing_url||'',
       date:r.submitted_at||'',
       ingested_via:r.ingested_via||null,
+      duplicate_of:r.duplicate_of||null,
       notes:r.notes||'',
       macro:(function(){try{var d=JSON.parse(r.macro_score_data||'{}');return d.decimal_score!=null?d.decimal_score:r.macro_score_v2;}catch(e){return r.macro_score_v2;}}()),
       msoa_code:(function(){try{var d=JSON.parse(r.macro_score_data||'{}');return d.msoa_code||null;}catch(e){return null;}}()),
@@ -285,7 +287,7 @@ async function loadListings(){
   render();
   updateCounts();
 }
-var curTab='inbox',srcFilter='all',extraFilters={scored:false,hi:false};
+var curTab='inbox',srcFilter='all',extraFilters={scored:false,hi:false,dup:false};
 var sortCol='macro',sortDir='desc';
 var viewMode='list';
 var mapObj=null,markers={};
@@ -530,6 +532,7 @@ function filtered(){
     if(srcFilter!=='all'&&l.source!==srcFilter)return false;
     if(extraFilters.scored&&l.combined===null)return false;
     if(extraFilters.hi&&(l.combined===null||l.combined<3.5))return false;
+    if(extraFilters.dup&&!l.duplicate_of)return false;
     var sqftMin=parseInt((document.getElementById('sqft-min')||{value:0}).value)||0;
     var sqftMax=parseInt((document.getElementById('sqft-max')||{value:5000}).value)||5000;
     if(l.size&&(l.size<sqftMin||l.size>sqftMax))return false;
@@ -623,7 +626,7 @@ function render(){
   tbody.innerHTML=rows.map(function(l){
     return '<tr class="'+(l.selected?'selected':'')+'" onclick="rowClick(event,\''+l.id+'\')" id="tr-'+l.id+'">'+
       '<td onclick="event.stopPropagation()"><input type="checkbox" '+(l.selected?'checked':'')+' onchange="toggleSel(\''+l.id+'\',this.checked)"></td>'+
-      '<td class="addr-cell"><div class="a1">'+l.addr+'</div><div class="a2">'+l.area+'</div><div class="a3" title="'+(isFullPostcode(l.postcode)?'':' — district only, cannot score')+'">'+l.postcode+(isFullPostcode(l.postcode)?'':'<span style="color:var(--amber);margin-left:3px" title="District-only postcode — cannot score precisely">⚠</span>')+'</div></td>'+
+      '<td class="addr-cell"><div class="a1">'+l.addr+'</div><div class="a2">'+l.area+'</div><div class="a3" title="'+(isFullPostcode(l.postcode)?'':' — district only, cannot score')+'">'+l.postcode+(isFullPostcode(l.postcode)?'':'<span style="color:var(--amber);margin-left:3px" title="District-only postcode — cannot score precisely">⚠</span>')+'</div>'+(l.duplicate_of?'<div style="font-size:10px;color:var(--amber);margin-top:2px">⚠ Possible duplicate — <a href="'+l.duplicate_of+'" target="_blank" onclick="event.stopPropagation()" style="color:var(--amber)">view match</a></div>':'')+'</td>'+
       '<td style="white-space:nowrap">'+(l.size?l.size.toLocaleString()+' sqft':'—')+'</td>'+
       '<td style="white-space:nowrap">'+priceStr(l)+'<span style="font-size:10px;color:var(--text3)"> p.a.</span></td>'+
       '<td>'+ppsfStr(l)+'<span style="font-size:10px;color:var(--text3)"> pa</span></td>'+

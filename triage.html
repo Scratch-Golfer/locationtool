@@ -577,7 +577,7 @@ function srcTag(s){var labels={rightmove:'Rightmove',loopnet:'LoopNet',agent:'Ag
 
 function ingestBadge(l){
   if(!l.ingested_via)return '';
-  if(l.ingested_via==='Zapier')return '<span class="auto-badge" title="Auto-ingested via Zapier">\u2709 Auto</span>';
+  if(l.ingested_via==='zapier_email')return '<span class="auto-badge" title="Auto-ingested via Zapier email alert">\u2709 Auto</span>';
   return '<span class="bulk-badge" title="Bulk imported via '+l.ingested_via+'">\ud83d\udce6 Bulk</span>';
 }
 

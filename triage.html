@@ -670,19 +670,40 @@ function render(){
 
 
 var _msoaLayer=null;
-async function showMSOABoundary(msoaCode){
-  // Remove existing boundary
+// msoaCode = the home MSOA (always drawn, backward-compatible with pre-blend scores).
+// blend = optional [{msoa_code,weight,distance_km}] from score-macro's 1km blend — when
+// present, draws every MSOA in it shaded by weight instead of just the single home one.
+async function showMSOABoundary(msoaCode, blend){
   if(_msoaLayer){mapObj.removeLayer(_msoaLayer);_msoaLayer=null;}
   if(!msoaCode||!mapObj)return;
+  var b=(blend&&blend.length)?blend:[{msoa_code:msoaCode,weight:1,distance_km:0}];
+  await drawMsoaBlend(b);
+}
+// Shared pattern — same function also lives in quick-search.html and appraisal-jobs/index.html.
+async function drawMsoaBlend(blend){
+  if(!blend||!blend.length)return;
+  var maxW=Math.max.apply(null,blend.map(function(m){return m.weight;}));
+  var weightMap={};blend.forEach(function(m){weightMap[m.msoa_code]=m.weight;});
+  var codesList=blend.map(function(m){return "'"+m.msoa_code+"'";}).join(',');
+  var where=encodeURIComponent('MSOA21CD IN ('+codesList+')');
+  var url='https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/Middle_layer_Super_Output_Areas_December_2021_Boundaries_EW_BGC_V3/FeatureServer/0/query?where='+where+'&outFields=MSOA21CD,MSOA21NM&f=geojson';
   try{
-    var url='https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/Middle_layer_Super_Output_Areas_December_2021_Boundaries_EW_BGC_V3/FeatureServer/0/query?where=MSOA21CD%3D%27'+msoaCode+'%27&outFields=MSOA21CD,MSOA21NM&f=geojson';
     var r=await fetch(url);
     var gj=await r.json();
     if(gj.features&&gj.features.length){
       _msoaLayer=L.geoJSON(gj,{
-        style:{color:'#3B6D11',weight:2.5,fillColor:'#3B6D11',fillOpacity:0.12,dashArray:'4 4'}
+        style:function(feature){
+          var code=feature.properties.MSOA21CD;
+          var w=weightMap[code]!=null?weightMap[code]:0;
+          var isHome=w===maxW;
+          return {color:'#3B6D11',weight:isHome?2.5:1.5,fillColor:'#3B6D11',fillOpacity:Math.max(0.05,0.28*w),opacity:isHome?1:Math.max(0.3,w),dashArray:isHome?null:'4 4'};
+        },
+        onEachFeature:function(feature,layer){
+          var code=feature.properties.MSOA21CD;
+          var w=weightMap[code];
+          if(w!=null)layer.bindTooltip(code+' \u2014 '+(w*100).toFixed(0)+'% weight',{sticky:true});
+        }
       }).addTo(mapObj);
-      // Fly to boundary
       mapObj.flyToBounds(_msoaLayer.getBounds(),{padding:[20,20],maxZoom:14,duration:0.8});
     }
   }catch(e){console.warn('MSOA boundary failed:',e);}
@@ -801,10 +822,14 @@ function showDetail(id){
   };
   document.getElementById('dp-newaction').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('dp-addaction').click();});
   // Show MSOA boundary on map if we have the code AND we're already in map view
-  var msoaCode=null;
-  try{msoaCode=l.msoa_code||(JSON.parse(l.macro_data||'{}').msoa_code)||null;}catch(e){}
+  var msoaCode=null,msoaBlend=null;
+  try{
+    var md=JSON.parse(l.macro_data||'{}');
+    msoaCode=l.msoa_code||md.msoa_code||null;
+    msoaBlend=md._blend||null;
+  }catch(e){}
   if(msoaCode&&mapObj&&viewMode==='map'){
-    showMSOABoundary(msoaCode);
+    showMSOABoundary(msoaCode,msoaBlend);
     if(l.lat&&l.lng)mapObj.flyTo([l.lat,l.lng],15,{duration:0.8});
   }
   // Add a "Show on map" button in the panel if MSOA available
@@ -815,7 +840,7 @@ function showDetail(id){
     mapBtn.onclick=function(){
       setView('map');
       setTimeout(function(){
-        if(msoaCode)showMSOABoundary(msoaCode);
+        if(msoaCode)showMSOABoundary(msoaCode,msoaBlend);
         if(l.lat&&l.lng)mapObj.flyTo([l.lat,l.lng],15,{duration:0.8});
       },150);
     };

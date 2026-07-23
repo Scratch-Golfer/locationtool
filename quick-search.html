@@ -319,7 +319,7 @@ async function runQuickSearch(){
       combinedEl.className='combined-bubble '+sc5(ms);
     }
     document.getElementById('qs-result').style.display='block';
-    showResultOnMap(lat,lng,macroData&&macroData.msoa_code);
+    showResultOnMap(lat,lng,macroData);
   }catch(e){
     document.getElementById('qs-progress').style.display='none';
     document.getElementById('qs-err').textContent=e.message;
@@ -339,7 +339,7 @@ function initMap(){
     attribution:'&copy; OpenStreetMap contributors &copy; CARTO',subdomains:'abcd',maxZoom:19
   }).addTo(mapObj);
 }
-async function showResultOnMap(lat,lng,msoaCode){
+async function showResultOnMap(lat,lng,macroData){
   document.getElementById('qs-map-block').style.display='block';
   initMap();
   setTimeout(function(){mapObj.invalidateSize();},50);
@@ -347,15 +347,40 @@ async function showResultOnMap(lat,lng,msoaCode){
   if(_msoaLayer){mapObj.removeLayer(_msoaLayer);_msoaLayer=null;}
   _marker=L.marker([lat,lng]).addTo(mapObj);
   mapObj.setView([lat,lng],15);
-  if(!msoaCode)return;
+  if(!macroData||!macroData.msoa_code)return;
+  // _blend is [{msoa_code,weight,distance_km}] from the score-macro 1km blend. Falls back
+  // to drawing just the single home MSOA for older cached scores that predate blending.
+  var blend=(macroData._blend&&macroData._blend.length)?macroData._blend:[{msoa_code:macroData.msoa_code,weight:1,distance_km:0}];
+  await drawMsoaBlend(blend);
+}
+// Draws every MSOA in a blend, shaded by weight (home MSOA solid, neighbours fading out
+// with a dashed outline), with a tooltip showing each one's weight. Shared pattern — same
+// function also lives in triage.html and appraisal-jobs/index.html.
+async function drawMsoaBlend(blend){
+  if(!blend||!blend.length)return;
+  var maxW=Math.max.apply(null,blend.map(function(m){return m.weight;}));
+  var weightMap={};blend.forEach(function(m){weightMap[m.msoa_code]=m.weight;});
+  var codesList=blend.map(function(m){return "'"+m.msoa_code+"'";}).join(',');
+  var where=encodeURIComponent('MSOA21CD IN ('+codesList+')');
+  var url='https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/Middle_layer_Super_Output_Areas_December_2021_Boundaries_EW_BGC_V3/FeatureServer/0/query?where='+where+'&outFields=MSOA21CD,MSOA21NM&f=geojson';
   try{
-    var url='https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/Middle_layer_Super_Output_Areas_December_2021_Boundaries_EW_BGC_V3/FeatureServer/0/query?where=MSOA21CD%3D%27'+msoaCode+'%27&outFields=MSOA21CD,MSOA21NM&f=geojson';
     var r=await fetch(url);
     var gj=await r.json();
-    if(gj.features&&gj.features.length){
-      _msoaLayer=L.geoJSON(gj,{style:{color:'#3B6D11',weight:2.5,fillColor:'#3B6D11',fillOpacity:0.12,dashArray:'4 4'}}).addTo(mapObj);
-      mapObj.flyToBounds(_msoaLayer.getBounds(),{padding:[20,20],maxZoom:14,duration:0.8});
-    }
+    if(!gj.features||!gj.features.length)return;
+    _msoaLayer=L.geoJSON(gj,{
+      style:function(feature){
+        var code=feature.properties.MSOA21CD;
+        var w=weightMap[code]!=null?weightMap[code]:0;
+        var isHome=w===maxW;
+        return {color:'#3B6D11',weight:isHome?2.5:1.5,fillColor:'#3B6D11',fillOpacity:Math.max(0.05,0.28*w),opacity:isHome?1:Math.max(0.3,w),dashArray:isHome?null:'4 4'};
+      },
+      onEachFeature:function(feature,layer){
+        var code=feature.properties.MSOA21CD;
+        var w=weightMap[code];
+        if(w!=null)layer.bindTooltip(code+' \u2014 '+(w*100).toFixed(0)+'% weight',{sticky:true});
+      }
+    }).addTo(mapObj);
+    mapObj.flyToBounds(_msoaLayer.getBounds(),{padding:[20,20],maxZoom:14,duration:0.8});
   }catch(e){console.warn('MSOA boundary failed:',e);}
 }
 </script>
